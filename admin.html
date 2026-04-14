@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>Admin Dashboard — ExamFlow Pro</title>
+  <link rel="stylesheet" href="css/styles.css"/>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+</head>
+<body>
+<div class="page-loader" id="pageLoader"><div class="loader"></div><p style="color:#94a3b8;font-size:0.875rem">Loading Admin Panel...</p></div>
+<div class="toast-container" id="toastContainer"></div>
+
+<div class="app-layout">
+  <aside class="sidebar">
+    <div class="sidebar-logo"><div class="logo-icon">🎓</div><div><div class="logo-text">ExamFlow Pro</div><div class="logo-sub">Admin Panel</div></div></div>
+    <nav class="sidebar-nav">
+      <div class="nav-section-title">Main</div>
+      <button class="nav-item active" id="navDash" onclick="showSection('secDash','navDash')"><span class="nav-icon">📊</span>Dashboard</button>
+      <button class="nav-item" id="navSchools" onclick="showSection('secSchools','navSchools')"><span class="nav-icon">🏫</span>Schools</button>
+      <button class="nav-item" id="navUsers" onclick="showSection('secUsers','navUsers')"><span class="nav-icon">👥</span>Users</button>
+      <div class="nav-section-title">System</div>
+      <button class="nav-item" id="navSettings" onclick="showSection('secSettings','navSettings')"><span class="nav-icon">⚙️</span>Settings</button>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="user-card"><div class="user-avatar" id="userAvatar">A</div><div><div class="user-name" id="userName">Admin</div><div class="user-role">Platform Admin</div></div></div>
+      <button class="btn btn-secondary w-full btn-sm" style="margin-top:10px" onclick="signOut()">🚪 Sign Out</button>
+    </div>
+  </aside>
+
+  <main class="main-content">
+    <header class="topbar"><span class="topbar-title">Admin Dashboard</span><div class="topbar-actions"><button class="topbar-btn">🔔</button></div></header>
+    <div class="page-content">
+      <div class="section" id="secDash">
+        <div class="grid g-4" style="margin-bottom:28px">
+          <div class="stat-card"><div class="stat-icon" style="background:rgba(99,102,241,0.15);color:#818cf8">🏫</div><div class="stat-value" id="statSchools">0</div><div class="stat-label">Schools</div></div>
+          <div class="stat-card"><div class="stat-icon" style="background:rgba(16,185,129,0.15);color:#34d399">👥</div><div class="stat-value" id="statUsers">0</div><div class="stat-label">Users</div></div>
+          <div class="stat-card"><div class="stat-icon" style="background:rgba(245,158,11,0.15);color:#fbbf24">📝</div><div class="stat-value" id="statTests">0</div><div class="stat-label">Tests</div></div>
+          <div class="stat-card"><div class="stat-icon" style="background:rgba(6,182,212,0.15);color:#67e8f9">📄</div><div class="stat-value" id="statAttempts">0</div><div class="stat-label">Results</div></div>
+        </div>
+        <div class="grid g-2">
+          <div class="card"><div class="card-header"><h3 style="font-size:1rem">Users by Role</h3></div><div class="card-body"><canvas id="chartRoles" height="220"></canvas></div></div>
+          <div class="card"><div class="card-header"><h3 style="font-size:1rem">Schools Overview</h3></div><div class="card-body"><canvas id="chartSchools" height="220"></canvas></div></div>
+        </div>
+      </div>
+
+      <div class="section hidden" id="secSchools">
+        <div class="flex-between" style="margin-bottom:20px"><h2 style="font-size:1.3rem">All Schools</h2><button class="btn btn-primary" onclick="openModal('addSchoolModal')">+ Add School</button></div>
+        <div class="card"><div class="card-body"><div class="table-wrap"><table class="table"><thead><tr><th>Name</th><th>City</th><th>Admin Email</th><th>Created</th><th>Actions</th></tr></thead><tbody id="schoolsTable"><tr><td colspan="5"><div class="empty-state"><div class="empty-icon">🏫</div><div class="empty-title">No schools yet</div></div></td></tr></tbody></table></div></div></div>
+      </div>
+
+      <div class="section hidden" id="secUsers">
+        <div class="flex-between" style="margin-bottom:20px"><h2 style="font-size:1.3rem">All Users</h2>
+        <select class="form-control" style="width:160px" id="filterRole" onchange="loadUsers()"><option value="all">All Roles</option><option value="admin">Admin</option><option value="school">School</option><option value="teacher">Teacher</option><option value="student">Student</option><option value="parent">Parent</option></select></div>
+        <div class="card"><div class="card-body"><div class="table-wrap"><table class="table"><thead><tr><th>Name</th><th>Email</th><th>Role</th><th>School</th><th>Joined</th><th>Actions</th></tr></thead><tbody id="usersTable"><tr><td colspan="6"><div class="empty-state"><div class="empty-icon">👥</div><div class="empty-title">No users</div></div></td></tr></tbody></table></div></div></div>
+      </div>
+
+      <div class="section hidden" id="secSettings">
+        <h2 style="font-size:1.3rem;margin-bottom:20px">Platform Settings</h2>
+        <div class="card"><div class="card-body"><form class="auth-form" style="max-width:500px" onsubmit="event.preventDefault();showToast('Settings saved!','success')">
+          <div class="form-group"><label class="form-label">Platform Name</label><input class="form-control" value="ExamFlow Pro"/></div>
+          <div class="form-group"><label class="form-label">Support Email</label><input class="form-control" value="support@examflow.pro"/></div>
+          <button class="btn btn-primary">Save Settings</button>
+        </form></div></div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<div class="modal-overlay" id="addSchoolModal"><div class="modal"><div class="modal-header"><h3 class="modal-title">Add School</h3><button class="modal-close" onclick="closeModal('addSchoolModal')">✕</button></div><div class="modal-body"><form class="auth-form" id="addSchoolForm"><div class="form-group"><label class="form-label">School Name</label><input class="form-control" id="schoolName" required/></div><div class="form-group"><label class="form-label">City</label><input class="form-control" id="schoolCity"/></div><div class="form-group"><label class="form-label">Admin Email</label><input type="email" class="form-control" id="schoolAdminEmail"/></div></form></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal('addSchoolModal')">Cancel</button><button class="btn btn-primary" onclick="addSchool()">Add School</button></div></div></div>
+
+<script src="js/shared.js"></script>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import { getAuth, onAuthStateChanged, signOut as fbSignOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+import { getFirestore, collection, getDocs, doc, getDoc, setDoc, deleteDoc, query, where, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+const app = initializeApp({ apiKey:"AIzaSyCbSZRvUsFuepNW8W2D5x-5EwHEE_O2UdE", authDomain:"aixynztestseries-fc5da.firebaseapp.com", projectId:"aixynztestseries-fc5da", storageBucket:"aixynztestseries-fc5da.firebasestorage.app", messagingSenderId:"354795848617", appId:"1:354795848617:web:ab50b9095256b6febbfab8" });
+const auth = getAuth(app), db = getFirestore(app);
+
+onAuthStateChanged(auth, async (u) => {
+  document.getElementById('pageLoader').style.opacity = '0';
+  setTimeout(() => document.getElementById('pageLoader').style.display = 'none', 500);
+  if (!u) { window.location.href = 'index.html'; return; }
+  const ud = await getDoc(doc(db, 'users', u.uid));
+  if (!ud.exists() || ud.data().role !== 'admin') { window.location.href = 'index.html'; return; }
+  document.getElementById('userName').textContent = ud.data().displayName || 'Admin';
+  document.getElementById('userAvatar').textContent = (ud.data().displayName || 'A')[0].toUpperCase();
+  loadDashboard(); loadSchools(); loadUsers();
+});
+window.signOut = () => fbSignOut(auth).then(() => window.location.href = 'index.html');
+
+async function loadDashboard() {
+  try {
+    const [schools, users, tests, results] = await Promise.all([getDocs(collection(db, 'schools')), getDocs(collection(db, 'users')), getDocs(collection(db, 'tests')), getDocs(collection(db, 'results'))]);
+    document.getElementById('statSchools').textContent = schools.size;
+    document.getElementById('statUsers').textContent = users.size;
+    document.getElementById('statTests').textContent = tests.size;
+    document.getElementById('statAttempts').textContent = results.size;
+
+    // Real role distribution
+    const roleCounts = { admin: 0, school: 0, teacher: 0, student: 0, parent: 0 };
+    users.forEach(d => { const r = d.data().role; if (roleCounts[r] !== undefined) roleCounts[r]++; });
+
+    safeChart('chartRoles', {
+      type: 'doughnut',
+      data: { labels: ['Admin', 'School', 'Teacher', 'Student', 'Parent'], datasets: [{ data: [roleCounts.admin, roleCounts.school, roleCounts.teacher, roleCounts.student, roleCounts.parent], backgroundColor: ['#ef4444', '#6366f1', '#06b6d4', '#10b981', '#f59e0b'] }] },
+      options: { responsive: true, plugins: { legend: { labels: { color: '#94a3b8' } } } }
+    });
+
+    // Schools chart
+    const schoolNames = []; const schoolStudents = [];
+    schools.forEach(d => { const s = d.data(); schoolNames.push(s.name || 'School'); schoolStudents.push(s.studentCount || 0); });
+    safeChart('chartSchools', {
+      type: 'bar',
+      data: { labels: schoolNames.length ? schoolNames : ['No schools'], datasets: [{ label: 'Students', data: schoolStudents.length ? schoolStudents : [0], backgroundColor: '#6366f1', borderRadius: 8 }] },
+      options: { responsive: true, plugins: { legend: { display: false } }, scales: { x: { ticks: { color: '#64748b' }, grid: { display: false } }, y: { ticks: { color: '#64748b' }, grid: { color: 'rgba(255,255,255,0.04)' } } } }
+    });
+  } catch (e) { console.error(e); }
+}
+
+async function loadSchools() {
+  const snap = await getDocs(collection(db, 'schools'));
+  const tbody = document.getElementById('schoolsTable');
+  if (snap.empty) { tbody.innerHTML = '<tr><td colspan="5"><div class="empty-state"><div class="empty-icon">🏫</div><div class="empty-title">No schools</div></div></td></tr>'; return; }
+  tbody.innerHTML = '';
+  snap.forEach(d => { const s = d.data(); tbody.innerHTML += '<tr><td><strong>' + (s.name || '—') + '</strong></td><td>' + (s.city || '—') + '</td><td>' + (s.adminEmail || '—') + '</td><td>' + formatDate(s.createdAt) + '</td><td><button class="btn btn-sm btn-secondary" onclick="deleteSchool(\'' + d.id + '\')">🗑️</button></td></tr>'; });
+}
+
+window.addSchool = async () => {
+  const name = document.getElementById('schoolName').value.trim();
+  if (!name) { showToast('Enter school name', 'warning'); return; }
+  const id = 'SCH_' + generateId();
+  try {
+    await setDoc(doc(db, 'schools', id), { name, city: document.getElementById('schoolCity').value, adminEmail: document.getElementById('schoolAdminEmail').value, createdAt: serverTimestamp(), studentCount: 0 });
+    closeModal('addSchoolModal'); showToast('School added!', 'success'); document.getElementById('addSchoolForm').reset(); await loadSchools(); await loadDashboard();
+  } catch (e) { showToast(e.message, 'error'); }
+};
+window.deleteSchool = async (id) => { if (!confirm('Delete?')) return; try { await deleteDoc(doc(db, 'schools', id)); showToast('Deleted', 'warning'); await loadSchools(); await loadDashboard(); } catch (e) { showToast(e.message, 'error'); } };
+
+async function loadUsers() {
+  const role = document.getElementById('filterRole')?.value || 'all';
+  let snap;
+  if (role === 'all') snap = await getDocs(collection(db, 'users'));
+  else snap = await getDocs(query(collection(db, 'users'), where('role', '==', role)));
+  const tbody = document.getElementById('usersTable');
+  if (snap.empty) { tbody.innerHTML = '<tr><td colspan="6"><div class="empty-state"><div class="empty-icon">👥</div><div class="empty-title">No users</div></div></td></tr>'; return; }
+  tbody.innerHTML = '';
+  const roleBadge = { admin: 'badge-danger', school: 'badge-primary', teacher: 'badge-info', student: 'badge-success', parent: 'badge-warning' };
+  snap.forEach(d => { const u = d.data(); tbody.innerHTML += '<tr><td>' + (u.displayName || '—') + '</td><td>' + u.email + '</td><td><span class="badge ' + (roleBadge[u.role] || 'badge-secondary') + '">' + u.role + '</span></td><td>' + (u.schoolName || '—') + '</td><td>' + formatDate(u.createdAt) + '</td><td><button class="btn btn-sm btn-secondary" onclick="deleteUser(\'' + d.id + '\')">🗑️</button></td></tr>'; });
+}
+window.loadUsers = loadUsers;
+window.deleteUser = async (id) => { if (!confirm('Delete?')) return; try { await deleteDoc(doc(db, 'users', id)); showToast('Removed', 'warning'); await loadUsers(); await loadDashboard(); } catch (e) { showToast(e.message, 'error'); } };
+</script>
+</body>
+</html>

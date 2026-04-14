@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>ExamFlow Pro — Digital Exam & Performance Platform</title>
+  <meta name="description" content="A free, full-scale multi-school digital exam and performance management platform."/>
+  <link rel="stylesheet" href="css/styles.css"/>
+  <link rel="stylesheet" href="css/auth.css"/>
+  <style>
+    .auth-bg{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;position:relative;z-index:1}
+    .auth-container{display:grid;grid-template-columns:1fr 1fr;max-width:960px;width:100%;min-height:580px;background:rgba(15,15,45,0.95);border:1px solid rgba(255,255,255,0.08);border-radius:28px;overflow:hidden;box-shadow:0 30px 80px rgba(0,0,0,0.6);backdrop-filter:blur(20px)}
+    .auth-left{background:linear-gradient(135deg,#0f0f2e,#1a1a4e);padding:48px;display:flex;flex-direction:column;justify-content:space-between;position:relative;overflow:hidden}
+    .auth-left::before{content:'';position:absolute;width:300px;height:300px;background:radial-gradient(circle,rgba(99,102,241,0.3),transparent);border-radius:50%;top:-100px;right:-100px}
+    .auth-left::after{content:'';position:absolute;width:200px;height:200px;background:radial-gradient(circle,rgba(6,182,212,0.2),transparent);border-radius:50%;bottom:-60px;left:-60px}
+    .brand-mark{display:flex;align-items:center;gap:12px;position:relative;z-index:1}
+    .brand-icon{width:48px;height:48px;background:linear-gradient(135deg,#6366f1,#8b5cf6);border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:1.5rem;box-shadow:0 8px 24px rgba(99,102,241,0.5)}
+    .brand-name{font-size:1.5rem;font-weight:900;color:#f1f5f9}
+    .brand-tagline{font-size:0.8rem;color:#818cf8;font-weight:500}
+    .auth-hero{position:relative;z-index:1}
+    .auth-hero h2{font-size:2.2rem;font-weight:800;line-height:1.2;color:#f1f5f9;margin-bottom:16px}
+    .auth-hero p{color:#94a3b8;font-size:0.95rem;line-height:1.7}
+    .feature-list{list-style:none;display:flex;flex-direction:column;gap:12px;margin-top:20px}
+    .feature-list li{display:flex;align-items:center;gap:10px;color:#94a3b8;font-size:0.875rem}
+    .feature-list .fi{width:24px;height:24px;background:rgba(99,102,241,0.2);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:0.8rem}
+    .auth-right{padding:48px;display:flex;flex-direction:column;justify-content:center;overflow-y:auto;max-height:100%}
+    .auth-right h3{font-size:1.6rem;font-weight:800;margin-bottom:6px}
+    .auth-right p.sub{color:#64748b;font-size:0.875rem;margin-bottom:24px}
+    .role-select{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:20px}
+    .role-btn{padding:10px 8px;border-radius:12px;border:2px solid rgba(255,255,255,0.06);background:rgba(255,255,255,0.03);color:#94a3b8;cursor:pointer;transition:all 0.2s ease;text-align:center;font-size:0.78rem;font-weight:600}
+    .role-btn:hover{border-color:rgba(99,102,241,0.4);color:#c7d2fe;background:rgba(99,102,241,0.05)}
+    .role-btn.active{border-color:#6366f1;background:rgba(99,102,241,0.12);color:#818cf8}
+    .role-btn .role-icon{font-size:1.2rem;display:block;margin-bottom:4px}
+    .divider{display:flex;align-items:center;gap:12px;margin:16px 0}
+    .divider::before,.divider::after{content:'';flex:1;height:1px;background:rgba(255,255,255,0.08)}
+    .divider span{font-size:0.75rem;color:#475569}
+    .btn-google{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;padding:12px;border:1px solid rgba(255,255,255,0.1);border-radius:12px;background:rgba(255,255,255,0.04);color:#e2e8f0;font-size:0.9rem;font-weight:500;cursor:pointer;transition:all 0.2s ease}
+    .btn-google:hover{background:rgba(255,255,255,0.08);border-color:rgba(255,255,255,0.2)}
+    .btn-google img{width:18px;height:18px}
+    .auth-switch{text-align:center;margin-top:16px;font-size:0.85rem;color:#64748b}
+    .auth-switch a{color:#818cf8;text-decoration:none;font-weight:600}
+    .auth-switch a:hover{color:#a5b4fc;text-decoration:underline}
+    .auth-form{display:flex;flex-direction:column;gap:14px}
+    .input-wrap{position:relative}
+    .input-icon{position:absolute;left:14px;top:50%;transform:translateY(-50%);color:#475569;font-size:1rem;pointer-events:none}
+    .input-wrap .form-control{padding-left:40px}
+    .input-wrap .toggle-pw{position:absolute;right:14px;top:50%;transform:translateY(-50%);cursor:pointer;color:#475569;background:none;border:none;font-size:1rem}
+    .school-field{display:none}
+    .school-field.show{display:block}
+    @media(max-width:768px){.auth-container{grid-template-columns:1fr}.auth-left{display:none}.auth-right{padding:32px 28px}}
+  </style>
+</head>
+<body>
+<div class="page-loader" id="pageLoader"><div class="loader"></div><p style="color:#94a3b8;font-size:0.875rem">Loading ExamFlow Pro...</p></div>
+<div class="toast-container" id="toastContainer"></div>
+
+<div class="auth-bg">
+  <div class="auth-container">
+    <!-- Left Panel -->
+    <div class="auth-left">
+      <div class="brand-mark">
+        <div class="brand-icon">🎓</div>
+        <div><div class="brand-name">ExamFlow Pro</div><div class="brand-tagline">Digital Exam Platform</div></div>
+      </div>
+      <div class="auth-hero">
+        <h2>Transform How Schools Conduct Exams</h2>
+        <p>A complete digital ecosystem for exams, performance tracking, and academic insights — completely free for schools.</p>
+        <ul class="feature-list">
+          <li><span class="fi">📝</span> Multi-type question engine</li>
+          <li><span class="fi">⚡</span> Instant auto-evaluation</li>
+          <li><span class="fi">📊</span> Deep performance analytics</li>
+          <li><span class="fi">🏆</span> Certificates & leaderboards</li>
+          <li><span class="fi">🏫</span> Multi-school management</li>
+        </ul>
+      </div>
+      <div style="display:flex;gap:24px">
+        <div style="text-align:center"><div style="font-size:1.5rem;font-weight:800;color:#f1f5f9">Free</div><div style="font-size:0.72rem;color:#64748b;text-transform:uppercase;letter-spacing:0.5px">Forever</div></div>
+        <div style="text-align:center"><div style="font-size:1.5rem;font-weight:800;color:#f1f5f9">∞</div><div style="font-size:0.72rem;color:#64748b;text-transform:uppercase;letter-spacing:0.5px">Schools</div></div>
+        <div style="text-align:center"><div style="font-size:1.5rem;font-weight:800;color:#f1f5f9">∞</div><div style="font-size:0.72rem;color:#64748b;text-transform:uppercase;letter-spacing:0.5px">Tests</div></div>
+      </div>
+    </div>
+
+    <!-- Right Panel -->
+    <div class="auth-right">
+      <!-- Login Form -->
+      <div id="loginPanel">
+        <h3>Welcome Back</h3>
+        <p class="sub">Sign in to your ExamFlow account</p>
+        <div class="role-select" id="roleSelectLogin">
+          <button class="role-btn active" data-role="admin" onclick="selectRole('admin')"><span class="role-icon">👨‍💼</span>Admin</button>
+          <button class="role-btn" data-role="school" onclick="selectRole('school')"><span class="role-icon">🏫</span>School</button>
+          <button class="role-btn" data-role="teacher" onclick="selectRole('teacher')"><span class="role-icon">🧑‍🏫</span>Teacher</button>
+          <button class="role-btn" data-role="student" onclick="selectRole('student')"><span class="role-icon">👨‍🎓</span>Student</button>
+        </div>
+        <form class="auth-form" id="loginForm" onsubmit="handleLogin(event)">
+          <div class="input-wrap"><span class="input-icon">✉️</span><input type="email" class="form-control" id="loginEmail" placeholder="Email address" required/></div>
+          <div class="input-wrap"><span class="input-icon">🔒</span><input type="password" class="form-control" id="loginPassword" placeholder="Password" required/><button type="button" class="toggle-pw" onclick="togglePw('loginPassword',this)">👁️</button></div>
+          <div style="display:flex;justify-content:flex-end"><a href="#" style="font-size:0.82rem;color:#818cf8;text-decoration:none" onclick="showForgot()">Forgot password?</a></div>
+          <button type="submit" class="btn btn-primary w-full btn-lg" id="loginBtn">Sign In</button>
+        </form>
+        <div class="divider"><span>or</span></div>
+        <button class="btn-google" onclick="handleGoogleLogin()"><img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google"/>Continue with Google</button>
+        <div class="auth-switch">Don't have an account? <a href="#" onclick="showSignup()">Create one free</a></div>
+      </div>
+
+      <!-- Signup Form -->
+      <div id="signupPanel" class="hidden">
+        <h3>Create Account</h3>
+        <p class="sub">Join ExamFlow — select your role to get started</p>
+        <form class="auth-form" id="signupForm" onsubmit="handleSignup(event)">
+          <div class="form-group">
+            <label class="form-label">Your Role</label>
+            <select class="form-control" id="signupRole" onchange="onRoleChange()">
+              <option value="school">🏫 School Admin — Register your school</option>
+              <option value="teacher">🧑‍🏫 Teacher — Join a school</option>
+              <option value="student">👨‍🎓 Student — Join a school</option>
+              <option value="parent">👨‍👩‍👧 Parent — Track your child</option>
+              <option value="admin">👨‍💼 Platform Admin</option>
+            </select>
+          </div>
+          <div class="input-wrap"><span class="input-icon">👤</span><input type="text" class="form-control" id="signupName" placeholder="Full name" required/></div>
+          <div class="input-wrap"><span class="input-icon">✉️</span><input type="email" class="form-control" id="signupEmail" placeholder="Email address" required/></div>
+          <div class="input-wrap"><span class="input-icon">🔒</span><input type="password" class="form-control" id="signupPassword" placeholder="Create password (min 6 chars)" required minlength="6"/><button type="button" class="toggle-pw" onclick="togglePw('signupPassword',this)">👁️</button></div>
+
+          <!-- School Name (for School Admin creating new school) -->
+          <div class="school-field show" id="schoolNameField">
+            <div class="form-group">
+              <label class="form-label">🏫 School Name</label>
+              <input class="form-control" id="signupSchoolName" placeholder="e.g. Delhi Public School, Pune"/>
+            </div>
+          </div>
+
+          <!-- School Selection (for Teacher/Student joining existing school) -->
+          <div class="school-field" id="schoolSelectField">
+            <div class="form-group">
+              <label class="form-label">🏫 Select Your School</label>
+              <select class="form-control" id="signupSchoolSelect" onchange="onSchoolSelect()">
+                <option value="">— Loading schools... —</option>
+              </select>
+            </div>
+            <div id="classDivField" style="display:none;margin-top:14px">
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+                <div class="form-group"><label class="form-label">Grade/Class</label><select class="form-control" id="signupClassSelect"><option value="">— Select Class —</option></select></div>
+                <div class="form-group"><label class="form-label">Division</label><input class="form-control" id="signupDiv" placeholder="e.g. A"/></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Parent child email -->
+          <div class="school-field" id="parentField">
+            <div class="form-group">
+              <label class="form-label">👨‍🎓 Child's Email</label>
+              <input class="form-control" id="signupChildEmail" placeholder="Your child's registered email"/>
+            </div>
+          </div>
+
+          <button type="submit" class="btn btn-primary w-full btn-lg" id="signupBtn">Create Account</button>
+        </form>
+        <div class="auth-switch">Already have an account? <a href="#" onclick="showLogin()">Sign in</a></div>
+      </div>
+
+      <!-- Forgot Password -->
+      <div id="forgotPanel" class="hidden">
+        <h3>Reset Password</h3>
+        <p class="sub">Enter your email to receive a reset link</p>
+        <form class="auth-form" onsubmit="handleForgot(event)">
+          <div class="input-wrap"><span class="input-icon">✉️</span><input type="email" class="form-control" id="forgotEmail" placeholder="Your email address" required/></div>
+          <button type="submit" class="btn btn-primary w-full btn-lg">Send Reset Link</button>
+        </form>
+        <div class="auth-switch"><a href="#" onclick="showLogin()">← Back to Sign In</a></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, sendPasswordResetEmail, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+import { getFirestore, doc, setDoc, getDoc, getDocs, collection, query, where, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyCbSZRvUsFuepNW8W2D5x-5EwHEE_O2UdE",
+  authDomain: "aixynztestseries-fc5da.firebaseapp.com",
+  projectId: "aixynztestseries-fc5da",
+  storageBucket: "aixynztestseries-fc5da.firebasestorage.app",
+  messagingSenderId: "354795848617",
+  appId: "1:354795848617:web:ab50b9095256b6febbfab8"
+};
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+const googleProvider = new GoogleAuthProvider();
+
+let selectedRole = 'admin';
+
+// ── Load schools list for signup ──
+async function loadSchoolsList() {
+  try {
+    const snap = await getDocs(collection(db, 'schools'));
+    const sel = document.getElementById('signupSchoolSelect');
+    sel.innerHTML = '<option value="">— Select your school —</option>';
+    snap.forEach(d => {
+      const s = d.data();
+      sel.innerHTML += '<option value="' + d.id + '" data-name="' + (s.name || '') + '">' + (s.name || 'Unnamed School') + ' — ' + (s.city || '') + '</option>';
+    });
+    if (snap.empty) {
+      sel.innerHTML = '<option value="">— No schools registered yet —</option>';
+    }
+  } catch (e) { console.error('loadSchools:', e); }
+}
+loadSchoolsList();
+
+// ── Role change handler for signup ──
+window.onRoleChange = function () {
+  const role = document.getElementById('signupRole').value;
+  const schoolNameField = document.getElementById('schoolNameField');
+  const schoolSelectField = document.getElementById('schoolSelectField');
+  const parentField = document.getElementById('parentField');
+
+  schoolNameField.classList.remove('show');
+  schoolSelectField.classList.remove('show');
+  parentField.classList.remove('show');
+
+  if (role === 'school') {
+    schoolNameField.classList.add('show');
+  } else if (role === 'teacher' || role === 'student') {
+    schoolSelectField.classList.add('show');
+    loadSchoolsList();
+  } else if (role === 'parent') {
+    parentField.classList.add('show');
+  }
+};
+
+window.onSchoolSelect = async () => {
+  const schoolId = document.getElementById('signupSchoolSelect').value;
+  const classDivField = document.getElementById('classDivField');
+  if (!schoolId) { classDivField.style.display = 'none'; return; }
+  classDivField.style.display = 'block';
+  
+  // Load classes for this school
+  try {
+    const snap = await getDocs(query(collection(db, 'classes'), where('schoolId', '==', schoolId)));
+    const sel = document.getElementById('signupClassSelect');
+    sel.innerHTML = '<option value="">— Select Class —</option>';
+    snap.forEach(d => { sel.innerHTML += '<option value="' + d.data().name + '">' + d.data().name + '</option>'; });
+  } catch (e) { console.error(e); }
+};
+
+// ── Auth State ──
+onAuthStateChanged(auth, async (user) => {
+  document.getElementById('pageLoader').style.opacity = '0';
+  setTimeout(() => { document.getElementById('pageLoader').style.display = 'none'; }, 500);
+  if (user) {
+    try {
+      const userDoc = await getDoc(doc(db, 'users', user.uid));
+      if (userDoc.exists()) redirectToRole(userDoc.data().role);
+    } catch (e) { console.log(e); }
+  }
+});
+
+// ── Role selector for login ──
+window.selectRole = (role) => {
+  selectedRole = role;
+  document.querySelectorAll('#roleSelectLogin .role-btn').forEach(b => b.classList.toggle('active', b.dataset.role === role));
+};
+
+// ── Login ──
+window.handleLogin = async (e) => {
+  e.preventDefault();
+  const email = document.getElementById('loginEmail').value;
+  const password = document.getElementById('loginPassword').value;
+  const btn = document.getElementById('loginBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<div class="loader" style="width:20px;height:20px;border-width:2px;margin:0 auto"></div>';
+  try {
+    const cred = await signInWithEmailAndPassword(auth, email, password);
+    const userDoc = await getDoc(doc(db, 'users', cred.user.uid));
+    let role = selectedRole;
+    if (userDoc.exists()) role = userDoc.data().role;
+    showToast('Welcome back! Redirecting...', 'success');
+    setTimeout(() => redirectToRole(role), 800);
+  } catch (err) {
+    showToast(getFriendlyError(err.code), 'error');
+    btn.disabled = false;
+    btn.innerHTML = 'Sign In';
+  }
+};
+
+// ── Signup ──
+window.handleSignup = async (e) => {
+  e.preventDefault();
+  const name = document.getElementById('signupName').value.trim();
+  const email = document.getElementById('signupEmail').value.trim();
+  const password = document.getElementById('signupPassword').value;
+  const role = document.getElementById('signupRole').value;
+  const btn = document.getElementById('signupBtn');
+
+  // Validate school info
+  let schoolId = '';
+  let schoolName = '', className = '', division = '';
+
+  if (role === 'school') {
+    schoolName = document.getElementById('signupSchoolName').value.trim();
+    if (!schoolName) { showToast('Please enter your school name', 'warning'); return; }
+  } else if (role === 'teacher' || role === 'student') {
+    const sel = document.getElementById('signupSchoolSelect');
+    schoolId = sel.value;
+    schoolName = sel.options[sel.selectedIndex]?.dataset?.name || '';
+    className = document.getElementById('signupClassSelect').value;
+    division = document.getElementById('signupDiv').value.trim().toUpperCase();
+    if (!schoolId) { showToast('Please select your school', 'warning'); return; }
+    if (!className) { showToast('Please select your class', 'warning'); return; }
+  }
+
+  btn.disabled = true;
+  btn.innerHTML = '<div class="loader" style="width:20px;height:20px;border-width:2px;margin:0 auto"></div>';
+
+  try {
+    const cred = await createUserWithEmailAndPassword(auth, email, password);
+    const uid = cred.user.uid;
+
+    // Create user doc
+    const userData = {
+      uid: uid,
+      email: email,
+      displayName: name,
+      role: role,
+      schoolId: schoolId,
+      schoolName: schoolName,
+      className: className,
+      division: division,
+      createdAt: serverTimestamp(),
+      active: true
+    };
+
+    if (role === 'parent') {
+      userData.childEmail = document.getElementById('signupChildEmail').value.trim();
+    }
+
+    // 1. Set user doc (defines the role for Firestore rules)
+    await setDoc(doc(db, 'users', uid), userData);
+
+    // 2. If school admin, create the school doc
+    if (role === 'school') {
+      const schId = 'SCH_' + uid.substring(0, 8).toUpperCase();
+      // Update userData with the new schoolId
+      userData.schoolId = schId;
+      await setDoc(doc(db, 'users', uid), userData); // Re-set with schoolId
+
+      await setDoc(doc(db, 'schools', schId), {
+        name: schoolName,
+        adminUid: uid,
+        adminEmail: email,
+        createdAt: serverTimestamp(),
+        classCount: 0,
+        teacherCount: 0,
+        studentCount: 0
+      });
+    }
+
+    showToast('Account created! Welcome to ExamFlow!', 'success');
+    setTimeout(() => redirectToRole(role), 800);
+  } catch (err) {
+    showToast(getFriendlyError(err.code), 'error');
+    btn.disabled = false;
+    btn.innerHTML = 'Create Account';
+  }
+};
+
+// ── Google Login ──
+window.handleGoogleLogin = async () => {
+  try {
+    const result = await signInWithPopup(auth, googleProvider);
+    const user = result.user;
+    const userDoc = await getDoc(doc(db, 'users', user.uid));
+    if (userDoc.exists()) {
+      showToast('Signed in with Google!', 'success');
+      setTimeout(() => redirectToRole(userDoc.data().role), 800);
+    } else {
+      // New Google user — need to collect role & school info
+      showToast('Welcome! Please create an account with your role.', 'info');
+      showSignup();
+      document.getElementById('signupName').value = user.displayName || '';
+      document.getElementById('signupEmail').value = user.email || '';
+      document.getElementById('signupEmail').readOnly = true;
+    }
+  } catch (err) {
+    if (err.code !== 'auth/popup-closed-by-user') showToast(getFriendlyError(err.code), 'error');
+  }
+};
+
+// ── Forgot Password ──
+window.handleForgot = async (e) => {
+  e.preventDefault();
+  const email = document.getElementById('forgotEmail').value;
+  try {
+    await sendPasswordResetEmail(auth, email);
+    showToast('Reset link sent! Check your email.', 'success');
+    showLogin();
+  } catch (err) { showToast(getFriendlyError(err.code), 'error'); }
+};
+
+function redirectToRole(role) {
+  const pages = { admin: 'admin.html', school: 'school.html', teacher: 'teacher.html', student: 'student.html', parent: 'parent.html' };
+  window.location.href = pages[role] || 'teacher.html';
+}
+
+function getFriendlyError(code) {
+  const msgs = {
+    'auth/user-not-found': 'No account found with this email.',
+    'auth/wrong-password': 'Incorrect password. Try again.',
+    'auth/email-already-in-use': 'This email is already registered.',
+    'auth/weak-password': 'Password must be at least 6 characters.',
+    'auth/invalid-email': 'Please enter a valid email address.',
+    'auth/too-many-requests': 'Too many attempts. Try again later.',
+    'auth/popup-closed-by-user': 'Sign-in popup was closed.',
+    'auth/invalid-credential': 'Invalid email or password.',
+  };
+  return msgs[code] || 'Something went wrong. Please try again.';
+}
+
+window.showLogin = () => { document.getElementById('loginPanel').classList.remove('hidden'); document.getElementById('signupPanel').classList.add('hidden'); document.getElementById('forgotPanel').classList.add('hidden'); };
+window.showSignup = () => { document.getElementById('loginPanel').classList.add('hidden'); document.getElementById('signupPanel').classList.remove('hidden'); document.getElementById('forgotPanel').classList.add('hidden'); onRoleChange(); };
+window.showForgot = () => { document.getElementById('loginPanel').classList.add('hidden'); document.getElementById('signupPanel').classList.add('hidden'); document.getElementById('forgotPanel').classList.remove('hidden'); };
+window.togglePw = (id, btn) => { const inp = document.getElementById(id); if (inp.type === 'password') { inp.type = 'text'; btn.textContent = '🙈'; } else { inp.type = 'password'; btn.textContent = '👁️'; } };
+</script>
+
+<script>
+window.showToast = (msg, type = 'info', duration = 3500) => {
+  const icons = { success: '✅', error: '❌', warning: '⚠️', info: 'ℹ️' };
+  const container = document.getElementById('toastContainer');
+  if (!container) return;
+  const t = document.createElement('div');
+  t.className = 'toast ' + type;
+  t.innerHTML = '<span>' + icons[type] + '</span><span style="flex:1;font-size:0.875rem">' + msg + '</span><span onclick="this.parentElement.remove()" style="cursor:pointer;opacity:0.5">✕</span>';
+  container.appendChild(t);
+  setTimeout(() => t.remove(), duration);
+};
+</script>
+</body>
+</html>

@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>School Dashboard — ExamFlow Pro</title>
+  <link rel="stylesheet" href="css/styles.css"/>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+</head>
+<body>
+<div class="page-loader" id="pageLoader"><div class="loader"></div><p style="color:#94a3b8;font-size:0.875rem">Loading School Panel...</p></div>
+<div class="toast-container" id="toastContainer"></div>
+
+<div class="app-layout">
+  <aside class="sidebar">
+    <div class="sidebar-logo"><div class="logo-icon">🏫</div><div><div class="logo-text" id="sidebarSchoolName">ExamFlow</div><div class="logo-sub">School Admin</div></div></div>
+    <nav class="sidebar-nav">
+      <div class="nav-section-title">Main</div>
+      <button class="nav-item active" id="navDash" onclick="showSection('secDash','navDash')"><span class="nav-icon">📊</span>Dashboard</button>
+      <button class="nav-item" id="navClasses" onclick="showSection('secClasses','navClasses')"><span class="nav-icon">📚</span>Classes</button>
+      <button class="nav-item" id="navTeachers" onclick="showSection('secTeachers','navTeachers')"><span class="nav-icon">🧑‍🏫</span>Teachers</button>
+      <button class="nav-item" id="navStudents" onclick="showSection('secStudents','navStudents')"><span class="nav-icon">👨‍🎓</span>Students</button>
+      <div class="nav-section-title">Reports</div>
+      <button class="nav-item" id="navPerf" onclick="showSection('secPerf','navPerf')"><span class="nav-icon">📈</span>Performance</button>
+      <button class="nav-item" id="navBrand" onclick="showSection('secBrand','navBrand')"><span class="nav-icon">🎨</span>Branding</button>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="user-card"><div class="user-avatar" id="userAvatar">S</div><div><div class="user-name" id="userName">School Admin</div><div class="user-role" id="userSchoolName">School</div></div></div>
+      <button class="btn btn-secondary w-full btn-sm" style="margin-top:10px" onclick="signOut()">🚪 Sign Out</button>
+    </div>
+  </aside>
+
+  <main class="main-content">
+    <header class="topbar">
+      <span class="topbar-title" id="topbarTitle">School Dashboard</span>
+      <div class="topbar-actions"><button class="topbar-btn">🔔</button></div>
+    </header>
+    <div class="page-content">
+      <!-- Dashboard -->
+      <div class="section" id="secDash">
+        <div class="grid g-4" style="margin-bottom:28px">
+          <div class="stat-card"><div class="stat-icon" style="background:rgba(99,102,241,0.15);color:#818cf8">📚</div><div class="stat-value" id="statClasses">0</div><div class="stat-label">Classes</div></div>
+          <div class="stat-card"><div class="stat-icon" style="background:rgba(16,185,129,0.15);color:#34d399">🧑‍🏫</div><div class="stat-value" id="statTeachers">0</div><div class="stat-label">Teachers</div></div>
+          <div class="stat-card"><div class="stat-icon" style="background:rgba(245,158,11,0.15);color:#fbbf24">👨‍🎓</div><div class="stat-value" id="statStudents">0</div><div class="stat-label">Students</div></div>
+          <div class="stat-card"><div class="stat-icon" style="background:rgba(6,182,212,0.15);color:#67e8f9">📝</div><div class="stat-value" id="statTests">0</div><div class="stat-label">Tests</div></div>
+        </div>
+        <div class="grid g-2">
+          <div class="card"><div class="card-header"><h3 style="font-size:1rem">Recent Test Scores</h3></div><div class="card-body"><canvas id="chartPerf" height="220"></canvas></div></div>
+          <div class="card"><div class="card-header"><h3 style="font-size:1rem">Pass/Fail Ratio</h3></div><div class="card-body"><canvas id="chartPF" height="220"></canvas></div></div>
+        </div>
+      </div>
+
+      <!-- Classes -->
+      <div class="section hidden" id="secClasses">
+        <div class="flex-between" style="margin-bottom:20px"><h2 style="font-size:1.3rem">Classes & Divisions</h2><button class="btn btn-primary" onclick="openModal('addClassModal')">+ Add Class</button></div>
+        <div class="card"><div class="card-body"><div class="table-wrap"><table class="table"><thead><tr><th>Class</th><th>Divisions</th><th>Students</th><th>Actions</th></tr></thead><tbody id="classesTable"><tr><td colspan="4"><div class="empty-state"><div class="empty-icon">📚</div><div class="empty-title">No classes yet</div></div></td></tr></tbody></table></div></div></div>
+      </div>
+
+      <!-- Teachers -->
+      <div class="section hidden" id="secTeachers">
+        <div class="flex-between" style="margin-bottom:20px"><h2 style="font-size:1.3rem">Teachers</h2><button class="btn btn-primary" onclick="openModal('addTeacherModal')">+ Assign Teacher</button></div>
+        <div class="card"><div class="card-body"><div class="table-wrap"><table class="table"><thead><tr><th>Name</th><th>Email</th><th>Class</th><th>Division</th><th>Subject</th><th>Actions</th></tr></thead><tbody id="teachersTable"><tr><td colspan="6"><div class="empty-state"><div class="empty-icon">🧑‍🏫</div><div class="empty-title">No teachers assigned</div></div></td></tr></tbody></table></div></div></div>
+      </div>
+
+      <!-- Students -->
+      <div class="section hidden" id="secStudents">
+        <div class="flex-between" style="margin-bottom:20px"><h2 style="font-size:1.3rem">All Students</h2></div>
+        <div class="card"><div class="card-body"><div class="table-wrap"><table class="table"><thead><tr><th>Name</th><th>Email</th><th>Class</th><th>Division</th><th>Avg Score</th></tr></thead><tbody id="studentsTable"><tr><td colspan="5"><div class="empty-state"><div class="empty-icon">👨‍🎓</div><div class="empty-title">No students found</div></div></td></tr></tbody></table></div></div></div>
+      </div>
+
+      <!-- Performance -->
+      <div class="section hidden" id="secPerf">
+        <h2 style="font-size:1.3rem;margin-bottom:20px">School Performance Overview</h2>
+        <div class="grid g-3">
+          <div class="card"><div class="card-body text-center"><div class="score-ring" id="perfRing" style="--pct:0%;margin:0 auto 12px"><span class="score-ring-val" id="perfAvg">—</span><span class="score-ring-lbl">Avg Score</span></div><div class="text-sm" style="color:#94a3b8">School Average</div></div></div>
+          <div class="card"><div class="card-body text-center"><div class="stat-value" style="color:#10b981" id="perfPassRate">—</div><div class="text-sm" style="color:#94a3b8;margin-top:8px">Pass Rate</div></div></div>
+          <div class="card"><div class="card-body text-center"><div class="stat-value" style="color:#f59e0b" id="perfTestCount">0</div><div class="text-sm" style="color:#94a3b8;margin-top:8px">Total Tests</div></div></div>
+        </div>
+      </div>
+
+      <!-- Branding -->
+      <div class="section hidden" id="secBrand">
+        <h2 style="font-size:1.3rem;margin-bottom:20px">School Branding</h2>
+        <div class="card"><div class="card-body"><form class="auth-form" style="max-width:500px" onsubmit="saveBranding(event)">
+          <div class="form-group"><label class="form-label">School Name</label><input class="form-control" id="brandName" placeholder="Your school name"/></div>
+          <div class="form-group"><label class="form-label">City</label><input class="form-control" id="brandCity" placeholder="City"/></div>
+          <div class="form-group"><label class="form-label">School Logo URL</label><input class="form-control" id="brandLogo" placeholder="https://..."/></div>
+          <div class="form-group"><label class="form-label">Certificate Signature Text</label><input class="form-control" id="brandSig" placeholder="Principal Name"/></div>
+          <button class="btn btn-primary">Save Branding</button>
+        </form></div></div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- Add Class Modal -->
+<div class="modal-overlay" id="addClassModal"><div class="modal"><div class="modal-header"><h3 class="modal-title">Add Class</h3><button class="modal-close" onclick="closeModal('addClassModal')">✕</button></div><div class="modal-body"><form class="auth-form" id="addClassForm"><div class="form-group"><label class="form-label">Class Name (e.g. 10th, 9th)</label><input class="form-control" id="className" required/></div><div class="form-group"><label class="form-label">Divisions (comma separated: A,B,C)</label><input class="form-control" id="classDivisions" placeholder="A,B,C" required/></div></form></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal('addClassModal')">Cancel</button><button class="btn btn-primary" onclick="addClass()">Add Class</button></div></div></div>
+
+<!-- Add Teacher Modal -->
+<div class="modal-overlay" id="addTeacherModal"><div class="modal"><div class="modal-header"><h3 class="modal-title">Assign Teacher</h3><button class="modal-close" onclick="closeModal('addTeacherModal')">✕</button></div><div class="modal-body"><div class="auth-form" id="addTeacherForm"><div class="form-group"><label class="form-label">Select Registered Teacher</label><select class="form-control" id="teacherEmailSelect"><option value="">Loading teachers...</option></select></div><div class="form-group"><label class="form-label">Class</label><select class="form-control" id="teacherClass"></select></div><div class="form-group"><label class="form-label">Division</label><input class="form-control" id="teacherDiv" placeholder="A"/></div><div class="form-group"><label class="form-label">Subject</label><input class="form-control" id="teacherSubject" placeholder="Mathematics"/></div></div></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal('addTeacherModal')">Cancel</button><button class="btn btn-primary" onclick="assignTeacher()">Assign Teacher</button></div></div></div>
+
+<script src="js/shared.js"></script>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import { getAuth, onAuthStateChanged, signOut as fbSignOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+import { getFirestore, collection, getDocs, doc, getDoc, setDoc, updateDoc, deleteDoc, query, where, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+const app = initializeApp({ apiKey:"AIzaSyCbSZRvUsFuepNW8W2D5x-5EwHEE_O2UdE", authDomain:"aixynztestseries-fc5da.firebaseapp.com", projectId:"aixynztestseries-fc5da", storageBucket:"aixynztestseries-fc5da.firebasestorage.app", messagingSenderId:"354795848617", appId:"1:354795848617:web:ab50b9095256b6febbfab8" });
+const auth = getAuth(app), db = getFirestore(app);
+let schoolId = null, schoolName = '';
+
+onAuthStateChanged(auth, async (u) => {
+  document.getElementById('pageLoader').style.opacity = '0';
+  setTimeout(() => document.getElementById('pageLoader').style.display = 'none', 500);
+  if (!u) { window.location.href = 'index.html'; return; }
+  const ud = await getDoc(doc(db, 'users', u.uid));
+  if (!ud.exists() || ud.data().role !== 'school') { window.location.href = 'index.html'; return; }
+  const userData = ud.data();
+  document.getElementById('userName').textContent = userData.displayName || 'School Admin';
+  document.getElementById('userAvatar').textContent = (userData.displayName || 'S')[0].toUpperCase();
+
+  schoolId = userData.schoolId || u.uid;
+  schoolName = userData.schoolName || '';
+
+  // Try to load school name from school doc
+  try {
+    const schoolDoc = await getDoc(doc(db, 'schools', schoolId));
+    if (schoolDoc.exists()) schoolName = schoolDoc.data().name || schoolName;
+  } catch (e) {}
+
+  document.getElementById('sidebarSchoolName').textContent = schoolName || 'ExamFlow';
+  document.getElementById('userSchoolName').textContent = schoolName || 'School';
+  document.getElementById('topbarTitle').textContent = schoolName || 'School Dashboard';
+  document.getElementById('brandName').value = schoolName;
+
+  loadAll();
+});
+
+window.signOut = () => fbSignOut(auth).then(() => window.location.href = 'index.html');
+
+async function loadAll() {
+  await loadClasses();
+  await loadTeachers();
+  await loadRegisteredTeachers();
+  await loadStudents();
+  await loadDashStats();
+  await loadPerformance();
+}
+
+async function loadDashStats() {
+  try {
+    const [cls, tch, stu, tst] = await Promise.all([
+      getDocs(query(collection(db, 'classes'), where('schoolId', '==', schoolId))),
+      getDocs(query(collection(db, 'teachers'), where('schoolId', '==', schoolId))),
+      getDocs(query(collection(db, 'students'), where('schoolId', '==', schoolId))),
+      getDocs(query(collection(db, 'tests'), where('schoolId', '==', schoolId)))
+    ]);
+    document.getElementById('statClasses').textContent = cls.size;
+    document.getElementById('statTeachers').textContent = tch.size;
+    document.getElementById('statStudents').textContent = stu.size;
+    document.getElementById('statTests').textContent = tst.size;
+  } catch (e) { console.error(e); }
+}
+
+// ── Real Performance Data from Results ──
+async function loadPerformance() {
+  try {
+    const snap = await getDocs(query(collection(db, 'results'), where('schoolId', '==', schoolId)));
+    if (snap.empty) {
+      initCharts({}, 0, 0);
+      return;
+    }
+    let total = 0, sum = 0, passed = 0;
+    const testScores = {};
+    snap.forEach(d => {
+      const r = d.data();
+      total++;
+      sum += (r.percentage || 0);
+      if (r.passed) passed++;
+      const tName = r.testName || 'Test';
+      if (!testScores[tName]) testScores[tName] = [];
+      testScores[tName].push(r.percentage || 0);
+    });
+    const avg = total ? Math.round(sum / total) : 0;
+    const passRate = total ? Math.round((passed / total) * 100) : 0;
+    document.getElementById('perfAvg').textContent = avg + '%';
+    document.getElementById('perfRing').style.setProperty('--pct', avg + '%');
+    document.getElementById('perfPassRate').textContent = passRate + '%';
+    document.getElementById('perfTestCount').textContent = Object.keys(testScores).length;
+    initCharts(testScores, passed, total - passed);
+  } catch (e) {
+    console.error(e);
+    initCharts({}, 0, 0);
+  }
+}
+
+function initCharts(testScores, passCount, failCount) {
+  try {
+    const labels = Object.keys(testScores).slice(-6);
+    const data = labels.map(l => {
+      const scores = testScores[l];
+      return Math.round(scores.reduce((a, b) => a + b, 0) / scores.length);
+    });
+
+    safeChart('chartPerf', {
+      type: 'bar',
+      data: { labels: labels.length ? labels : ['No data'], datasets: [{ label: 'Avg %', data: data.length ? data : [0], backgroundColor: '#6366f1', borderRadius: 8 }] },
+      options: { responsive: true, plugins: { legend: { display: false } }, scales: { x: { ticks: { color: '#64748b' }, grid: { display: false } }, y: { min: 0, max: 100, ticks: { color: '#64748b' }, grid: { color: 'rgba(255,255,255,0.04)' } } } }
+    });
+    safeChart('chartPF', {
+      type: 'doughnut',
+      data: { labels: ['Pass', 'Fail'], datasets: [{ data: [passCount || 0, failCount || 0], backgroundColor: ['#10b981', '#ef4444'] }] },
+      options: { responsive: true, plugins: { legend: { labels: { color: '#94a3b8' } } } }
+    });
+  } catch (e) { console.error(e); }
+}
+
+// ── Classes ──
+async function loadClasses() {
+  try {
+    const snap = await getDocs(query(collection(db, 'classes'), where('schoolId', '==', schoolId)));
+    const tbody = document.getElementById('classesTable');
+    const sel = document.getElementById('teacherClass');
+    sel.innerHTML = '';
+    if (snap.empty) { tbody.innerHTML = '<tr><td colspan="4"><div class="empty-state"><div class="empty-icon">📚</div><div class="empty-title">No classes yet</div></div></td></tr>'; return; }
+    tbody.innerHTML = '';
+    snap.forEach(d => {
+      const c = d.data();
+      const divBadges = (c.divisions || []).map(dv => '<span class="badge badge-primary" style="margin:2px">' + dv + '</span>').join('');
+      tbody.innerHTML += '<tr><td><strong>' + c.name + '</strong></td><td>' + divBadges + '</td><td>' + (c.studentCount || 0) + '</td><td><button class="btn btn-sm btn-secondary" onclick="deleteClass(\'' + d.id + '\')">🗑️</button></td></tr>';
+      sel.innerHTML += '<option value="' + c.name + '">' + c.name + '</option>';
+    });
+  } catch (e) { console.error(e); }
+}
+
+window.addClass = async () => {
+  const name = document.getElementById('className').value.trim();
+  const divsRaw = document.getElementById('classDivisions').value.trim();
+  if (!name) { showToast('Enter class name', 'warning'); return; }
+  if (!divsRaw) { showToast('Enter divisions', 'warning'); return; }
+  const divs = divsRaw.split(',').map(d => d.trim()).filter(Boolean);
+  const id = schoolId + '_' + name.replace(/\s/g, '');
+  try {
+    await setDoc(doc(db, 'classes', id), { name, divisions: divs, schoolId, schoolName, studentCount: 0, createdAt: serverTimestamp() });
+    closeModal('addClassModal');
+    showToast('Class "' + name + '" added!', 'success');
+    document.getElementById('className').value = '';
+    document.getElementById('classDivisions').value = '';
+    await loadClasses(); await loadDashStats();
+  } catch (err) { showToast('Error: ' + err.message, 'error'); }
+};
+
+window.deleteClass = async (id) => { if (!confirm('Delete?')) return; try { await deleteDoc(doc(db, 'classes', id)); showToast('Deleted', 'warning'); await loadClasses(); await loadDashStats(); } catch (e) { showToast(e.message, 'error'); } };
+
+// ── Registered Teachers Dropdown ──
+async function loadRegisteredTeachers() {
+  try {
+    const snap = await getDocs(query(collection(db, 'users'), where('schoolId', '==', schoolId), where('role', '==', 'teacher')));
+    const sel = document.getElementById('teacherEmailSelect');
+    if (snap.empty) { sel.innerHTML = '<option value="">No teachers found in school</option>'; return; }
+    sel.innerHTML = '<option value="">— Select Teacher —</option>';
+    snap.forEach(d => {
+      const u = d.data();
+      sel.innerHTML += '<option value="' + u.email + '" data-name="' + (u.displayName || '') + '">' + (u.displayName || u.email) + ' (' + u.email + ')</option>';
+    });
+  } catch (e) { console.error('loadRegTch:', e); }
+}
+
+async function loadTeachers() {
+  try {
+    const snap = await getDocs(query(collection(db, 'teachers'), where('schoolId', '==', schoolId)));
+    const tbody = document.getElementById('teachersTable');
+    if (snap.empty) { tbody.innerHTML = '<tr><td colspan="6"><div class="empty-state"><div class="empty-icon">🧑‍🏫</div><div class="empty-title">No teachers assigned</div></div></td></tr>'; return; }
+    tbody.innerHTML = '';
+    snap.forEach(d => { const t = d.data(); tbody.innerHTML += '<tr><td>' + (t.name || t.email) + '</td><td>' + t.email + '</td><td>' + (t.className || '—') + '</td><td><span class="badge badge-primary">' + (t.division || '—') + '</span></td><td>' + (t.subject || '—') + '</td><td><button class="btn btn-sm btn-secondary" onclick="removeTeacher(\'' + d.id + '\')">🗑️</button></td></tr>'; });
+  } catch (e) { console.error(e); }
+}
+
+window.assignTeacher = async () => {
+  const sel = document.getElementById('teacherEmailSelect');
+  const email = sel.value;
+  const name = sel.options[sel.selectedIndex]?.dataset?.name || email;
+  if (!email) { showToast('Select a teacher', 'warning'); return; }
+  const cls = document.getElementById('teacherClass').value;
+  const div = document.getElementById('teacherDiv').value.trim();
+  const sub = document.getElementById('teacherSubject').value.trim();
+  const id = schoolId + '_' + email.replace(/[@.]/g, '_');
+  try {
+    await setDoc(doc(db, 'teachers', id), { email, name, className: cls, division: div, subject: sub, schoolId, schoolName, createdAt: serverTimestamp() });
+    closeModal('addTeacherModal'); showToast('Teacher assigned!', 'success');
+    await loadTeachers(); await loadDashStats();
+  } catch (e) { showToast(e.message, 'error'); }
+};
+window.removeTeacher = async (id) => { if (!confirm('Remove?')) return; try { await deleteDoc(doc(db, 'teachers', id)); showToast('Removed', 'warning'); await loadTeachers(); await loadDashStats(); } catch (e) { showToast(e.message, 'error'); } };
+
+// ── Students ──
+async function loadStudents() {
+  try {
+    const snap = await getDocs(query(collection(db, 'users'), where('schoolId', '==', schoolId), where('role', '==', 'student')));
+    const tbody = document.getElementById('studentsTable');
+    if (snap.empty) { tbody.innerHTML = '<tr><td colspan="5"><div class="empty-state"><div class="empty-icon">👨‍🎓</div><div class="empty-title">No students registered</div></div></td></tr>'; return; }
+    tbody.innerHTML = '';
+    snap.forEach(d => { const s = d.data(); tbody.innerHTML += '<tr><td>' + (s.displayName || '—') + '</td><td>' + (s.email || '—') + '</td><td>' + (s.className || '—') + '</td><td><span class="badge badge-primary">' + (s.division || '—') + '</span></td><td><button class="btn btn-sm btn-secondary" onclick="viewStudentProfile(\'' + d.id + '\')">👁️ View</button></td></tr>'; });
+  } catch (e) { console.error(e); }
+}
+
+window.viewStudentProfile = (id) => { showToast('Profile detail coming soon!', 'info'); };
+
+// ── Branding Save ──
+window.saveBranding = async (e) => {
+  e.preventDefault();
+  const name = document.getElementById('brandName').value.trim();
+  const city = document.getElementById('brandCity').value.trim();
+  const logo = document.getElementById('brandLogo').value.trim();
+  const sig = document.getElementById('brandSig').value.trim();
+  try {
+    await updateDoc(doc(db, 'schools', schoolId), { name, city, logo, signature: sig });
+    schoolName = name;
+    document.getElementById('sidebarSchoolName').textContent = name;
+    document.getElementById('userSchoolName').textContent = name;
+    document.getElementById('topbarTitle').textContent = name;
+    showToast('Branding saved!', 'success');
+  } catch (e) { showToast(e.message, 'error'); }
+};
+</script>
+</body>
+</html>

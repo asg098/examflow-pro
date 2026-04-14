@@ -1,0 +1,35 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isAuth() {
+      return request.auth != null;
+    }
+
+    // ── Schools ──
+    match /schools/{schoolId} {
+      // Allow unauthenticated read so teachers/students can select school during signup
+      allow read: if true; 
+      allow create: if isAuth(); 
+      allow update, delete: if isAuth();
+    }
+
+    // ── Users ──
+    match /users/{userId} {
+      allow read: if isAuth();
+      allow create: if isAuth() && request.auth.uid == userId;
+      allow update: if isAuth() && (request.auth.uid == userId || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin');
+      allow delete: if isAuth() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    // ── Other collections (Permissive for now to ensure functionality) ──
+    match /classes/{classId} { allow read, write: if isAuth(); }
+    match /teachers/{teacherId} { allow read, write: if isAuth(); }
+    match /students/{studentId} { allow read, write: if isAuth(); }
+    match /tests/{testId} { allow read, write: if isAuth(); }
+    match /results/{resultId} { allow read, write: if isAuth(); }
+    match /questionBank/{questionId} { allow read, write: if isAuth(); }
+    match /certificates/{certId} { allow read, write: if isAuth(); }
+  }
+}

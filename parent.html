@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>Parent Dashboard — ExamFlow Pro</title>
+  <link rel="stylesheet" href="css/styles.css"/>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+</head>
+<body>
+<div class="page-loader" id="pageLoader"><div class="loader"></div><p style="color:#94a3b8;font-size:0.875rem">Loading Parent Panel...</p></div>
+<div class="toast-container" id="toastContainer"></div>
+
+<div class="app-layout">
+  <aside class="sidebar">
+    <div class="sidebar-logo"><div class="logo-icon">👨‍👩‍👧</div><div><div class="logo-text" id="sidebarSchoolName">ExamFlow</div><div class="logo-sub">Parent View</div></div></div>
+    <nav class="sidebar-nav">
+      <div class="nav-section-title">Main</div>
+      <button class="nav-item active" id="navDash" onclick="showSection('secDash','navDash')"><span class="nav-icon">📊</span>Overview</button>
+      <button class="nav-item" id="navResults" onclick="showSection('secResults','navResults')"><span class="nav-icon">📋</span>Results</button>
+      <button class="nav-item" id="navProgress" onclick="showSection('secProgress','navProgress')"><span class="nav-icon">📈</span>Progress</button>
+      <button class="nav-item" id="navWeakness" onclick="showSection('secWeak','navWeakness')"><span class="nav-icon">🔍</span>Weak Areas</button>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="user-card"><div class="user-avatar" id="userAvatar">P</div><div><div class="user-name" id="userName">Parent</div><div class="user-role">Parent</div></div></div>
+      <button class="btn btn-secondary w-full btn-sm" style="margin-top:10px" onclick="signOut()">🚪 Sign Out</button>
+    </div>
+  </aside>
+
+  <main class="main-content">
+    <header class="topbar"><span class="topbar-title">Parent Dashboard</span>
+    <div class="topbar-actions">
+      <div style="display:flex;align-items:center;gap:8px"><input class="form-control" id="childEmail" placeholder="Child's email" style="width:220px;padding:8px 14px;font-size:0.82rem"/><button class="btn btn-sm btn-primary" onclick="linkChild()">Link</button></div>
+    </div></header>
+    <div class="page-content">
+
+      <div class="section" id="secDash">
+        <div style="margin-bottom:20px;padding:16px 20px;background:rgba(99,102,241,0.06);border:1px solid rgba(99,102,241,0.15);border-radius:14px">
+          <p style="font-size:0.9rem;color:#94a3b8">👨‍🎓 Viewing performance for: <strong style="color:#818cf8" id="childName">Not linked yet — enter your child's email above</strong></p>
+        </div>
+        <div class="grid g-4" style="margin-bottom:28px">
+          <div class="stat-card"><div class="stat-icon" style="background:rgba(99,102,241,0.15);color:#818cf8">📝</div><div class="stat-value" id="pTests">0</div><div class="stat-label">Tests Taken</div></div>
+          <div class="stat-card"><div class="stat-icon" style="background:rgba(16,185,129,0.15);color:#34d399">📊</div><div class="stat-value" id="pAvg">—</div><div class="stat-label">Average</div></div>
+          <div class="stat-card"><div class="stat-icon" style="background:rgba(245,158,11,0.15);color:#fbbf24">🏆</div><div class="stat-value" id="pBest">—</div><div class="stat-label">Best Score</div></div>
+          <div class="stat-card"><div class="stat-icon" style="background:rgba(6,182,212,0.15);color:#67e8f9">✅</div><div class="stat-value" id="pPassRate">—</div><div class="stat-label">Pass Rate</div></div>
+        </div>
+        <div class="grid g-2">
+          <div class="card"><div class="card-header"><h3 style="font-size:1rem">Performance Trend</h3></div><div class="card-body"><canvas id="chartTrend" height="220"></canvas></div></div>
+          <div class="card"><div class="card-header"><h3 style="font-size:1rem">Subject Breakdown</h3></div><div class="card-body"><canvas id="chartSubjects" height="220"></canvas></div></div>
+        </div>
+      </div>
+
+      <div class="section hidden" id="secResults">
+        <h2 style="font-size:1.3rem;margin-bottom:20px">Child's Results</h2>
+        <div class="card"><div class="card-body"><div class="table-wrap"><table class="table"><thead><tr><th>Test</th><th>Subject</th><th>Score</th><th>%</th><th>Grade</th><th>Status</th></tr></thead><tbody id="resultsTable"><tr><td colspan="6"><div class="empty-state"><div class="empty-icon">📋</div><div class="empty-title">Link child's account first</div></div></td></tr></tbody></table></div></div></div>
+      </div>
+
+      <div class="section hidden" id="secProgress">
+        <h2 style="font-size:1.3rem;margin-bottom:20px">Progress Over Time</h2>
+        <div class="card"><div class="card-header"><h3 style="font-size:1rem">Score History</h3></div><div class="card-body"><canvas id="chartHistory" height="250"></canvas></div></div>
+      </div>
+
+      <div class="section hidden" id="secWeak">
+        <h2 style="font-size:1.3rem;margin-bottom:20px">Areas Needing Attention</h2>
+        <div class="card"><div class="card-body" id="weakAreas"><p style="color:#64748b">Link your child's account to see weak areas.</p></div></div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script src="js/shared.js"></script>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import { getAuth, onAuthStateChanged, signOut as fbSignOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+import { getFirestore, collection, getDocs, doc, getDoc, query, where } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+const app = initializeApp({ apiKey:"AIzaSyCbSZRvUsFuepNW8W2D5x-5EwHEE_O2UdE", authDomain:"aixynztestseries-fc5da.firebaseapp.com", projectId:"aixynztestseries-fc5da", storageBucket:"aixynztestseries-fc5da.firebasestorage.app", messagingSenderId:"354795848617", appId:"1:354795848617:web:ab50b9095256b6febbfab8" });
+const auth = getAuth(app), db = getFirestore(app);
+
+onAuthStateChanged(auth, async (u) => {
+  document.getElementById('pageLoader').style.opacity = '0';
+  setTimeout(() => document.getElementById('pageLoader').style.display = 'none', 500);
+  if (!u) { window.location.href = 'index.html'; return; }
+  const ud = await getDoc(doc(db, 'users', u.uid));
+  if (!ud.exists() || ud.data().role !== 'parent') { window.location.href = 'index.html'; return; }
+  const d = ud.data();
+  document.getElementById('userName').textContent = d.displayName || 'Parent';
+  document.getElementById('userAvatar').textContent = (d.displayName || 'P')[0].toUpperCase();
+  document.getElementById('sidebarSchoolName').textContent = d.schoolName || 'ExamFlow';
+  if (d.childEmail) { document.getElementById('childEmail').value = d.childEmail; linkChild(); }
+});
+window.signOut = () => fbSignOut(auth).then(() => window.location.href = 'index.html');
+
+window.linkChild = async () => {
+  const email = document.getElementById('childEmail').value.trim();
+  if (!email) { showToast('Enter child email', 'warning'); return; }
+  const snap = await getDocs(query(collection(db, 'results'), where('studentEmail', '==', email)));
+  if (snap.empty) { document.getElementById('childName').textContent = email + ' — no results found'; return; }
+  const results = []; let name = email;
+  snap.forEach(d => { const r = d.data(); results.push(r); if (r.studentName) name = r.studentName; });
+  document.getElementById('childName').textContent = name;
+
+  const total = results.length;
+  const avg = Math.round(results.reduce((s, r) => s + (r.percentage || 0), 0) / total);
+  const best = Math.max(...results.map(r => r.percentage || 0));
+  const passRate = Math.round((results.filter(r => r.passed).length / total) * 100);
+  document.getElementById('pTests').textContent = total;
+  document.getElementById('pAvg').textContent = avg + '%';
+  document.getElementById('pBest').textContent = best + '%';
+  document.getElementById('pPassRate').textContent = passRate + '%';
+
+  // Results table
+  const tbody = document.getElementById('resultsTable'); tbody.innerHTML = '';
+  results.forEach(r => { const g = getGrade(r.percentage || 0);
+    tbody.innerHTML += '<tr><td>' + r.testName + '</td><td>' + (r.subject || '—') + '</td><td><strong>' + r.score + '/' + r.totalMarks + '</strong></td><td style="color:' + g.color + ';font-weight:700">' + r.percentage + '%</td><td><span class="badge ' + (r.passed ? 'badge-success' : 'badge-danger') + '">' + g.grade + '</span></td><td><span class="badge ' + (r.passed ? 'badge-success' : 'badge-danger') + '">' + (r.passed ? 'PASS' : 'FAIL') + '</span></td></tr>';
+  });
+
+  // Weak areas
+  const subjectScores = {};
+  results.forEach(r => { const sub = r.subject || 'General'; if (!subjectScores[sub]) subjectScores[sub] = []; subjectScores[sub].push(r.percentage || 0); });
+  const weakHtml = Object.entries(subjectScores).filter(([, s]) => s.reduce((a, b) => a + b, 0) / s.length < 60).map(([sub, s]) => {
+    const subAvg = Math.round(s.reduce((a, b) => a + b, 0) / s.length);
+    return '<div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:rgba(239,68,68,0.06);border:1px solid rgba(239,68,68,0.15);border-radius:10px;margin-bottom:8px"><div><strong>' + sub + '</strong><span style="color:#64748b;font-size:0.82rem;margin-left:8px">Avg: ' + subAvg + '%</span></div><span class="badge badge-danger">Needs Work</span></div>';
+  }).join('');
+  document.getElementById('weakAreas').innerHTML = weakHtml || '<p style="color:#10b981">✅ No weak areas — great performance!</p>';
+
+  initCharts(results, subjectScores);
+};
+
+function initCharts(results, subjects) {
+  try {
+    if (window._c1) window._c1.destroy(); if (window._c2) window._c2.destroy(); if (window._c3) window._c3.destroy();
+    const labels = results.map((_, i) => 'Test ' + (i + 1));
+    const data = results.map(r => r.percentage || 0);
+    window._c1 = new Chart(document.getElementById('chartTrend'), {
+      type: 'line', data: { labels, datasets: [{ label: 'Score %', data, borderColor: '#818cf8', backgroundColor: 'rgba(99,102,241,0.1)', fill: true, tension: 0.4 }] },
+      options: { responsive: true, plugins: { legend: { labels: { color: '#94a3b8' } } }, scales: { x: { ticks: { color: '#64748b' }, grid: { color: 'rgba(255,255,255,0.04)' } }, y: { min: 0, max: 100, ticks: { color: '#64748b' }, grid: { color: 'rgba(255,255,255,0.04)' } } } }
+    });
+    const subs = Object.keys(subjects);
+    const subAvgs = subs.map(s => Math.round(subjects[s].reduce((a, b) => a + b, 0) / subjects[s].length));
+    window._c2 = new Chart(document.getElementById('chartSubjects'), {
+      type: 'bar', data: { labels: subs, datasets: [{ label: 'Avg %', data: subAvgs, backgroundColor: '#6366f1', borderRadius: 8 }] },
+      options: { responsive: true, plugins: { legend: { display: false } }, scales: { x: { ticks: { color: '#64748b' }, grid: { display: false } }, y: { min: 0, max: 100, ticks: { color: '#64748b' }, grid: { color: 'rgba(255,255,255,0.04)' } } } }
+    });
+    window._c3 = new Chart(document.getElementById('chartHistory'), {
+      type: 'line', data: { labels, datasets: [{ label: 'Score', data, borderColor: '#10b981', backgroundColor: 'rgba(16,185,129,0.1)', fill: true, tension: 0.3 }] },
+      options: { responsive: true, plugins: { legend: { labels: { color: '#94a3b8' } } }, scales: { x: { ticks: { color: '#64748b' }, grid: { color: 'rgba(255,255,255,0.04)' } }, y: { min: 0, max: 100, ticks: { color: '#64748b' }, grid: { color: 'rgba(255,255,255,0.04)' } } } }
+    });
+  } catch (e) { console.error(e); }
+}
+</script>
+</body>
+</html>

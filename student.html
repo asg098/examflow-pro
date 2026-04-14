@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>Student Dashboard — ExamFlow Pro</title>
+  <link rel="stylesheet" href="css/styles.css"/>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+</head>
+<body>
+<div class="page-loader" id="pageLoader"><div class="loader"></div><p style="color:#94a3b8;font-size:0.875rem">Loading Student Panel...</p></div>
+<div class="toast-container" id="toastContainer"></div>
+
+<div class="app-layout">
+  <aside class="sidebar" id="sidebarMain">
+    <div class="sidebar-logo"><div class="logo-icon">👨‍🎓</div><div><div class="logo-text" id="sidebarSchoolName">ExamFlow</div><div class="logo-sub">Student Panel</div></div></div>
+    <nav class="sidebar-nav">
+      <div class="nav-section-title">Main</div>
+      <button class="nav-item active" id="navDash" onclick="showSection('secDash','navDash')"><span class="nav-icon">📊</span>Dashboard</button>
+      <button class="nav-item" id="navTests" onclick="showSection('secTests','navTests')"><span class="nav-icon">📝</span>Available Tests</button>
+      <div class="nav-section-title">Results</div>
+      <button class="nav-item" id="navResults" onclick="showSection('secResults','navResults')"><span class="nav-icon">📋</span>My Results</button>
+      <button class="nav-item" id="navProgress" onclick="showSection('secProgress','navProgress')"><span class="nav-icon">📈</span>Progress</button>
+      <button class="nav-item" id="navLeader" onclick="showSection('secLeader','navLeader')"><span class="nav-icon">🏆</span>Leaderboard</button>
+      <button class="nav-item" id="navCerts" onclick="showSection('secCerts','navCerts')"><span class="nav-icon">🎖️</span>Certificates</button>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="user-card"><div class="user-avatar" id="userAvatar">S</div><div><div class="user-name" id="userName">Student</div><div class="user-role" id="userSchoolName">School</div></div></div>
+      <button class="btn btn-secondary w-full btn-sm" style="margin-top:10px" onclick="signOut()">🚪 Sign Out</button>
+    </div>
+  </aside>
+
+  <main class="main-content">
+    <header class="topbar"><span class="topbar-title" id="topbarTitle">Student Dashboard</span><div class="topbar-actions"><button class="topbar-btn">🔔</button></div></header>
+    <div class="page-content">
+
+      <!-- Dashboard -->
+      <div class="section" id="secDash">
+        <div class="grid g-4" style="margin-bottom:28px">
+          <div class="stat-card"><div class="stat-icon" style="background:rgba(99,102,241,0.15);color:#818cf8">📝</div><div class="stat-value" id="sAvail">0</div><div class="stat-label">Available Tests</div></div>
+          <div class="stat-card"><div class="stat-icon" style="background:rgba(16,185,129,0.15);color:#34d399">✅</div><div class="stat-value" id="sCompleted">0</div><div class="stat-label">Completed</div></div>
+          <div class="stat-card"><div class="stat-icon" style="background:rgba(245,158,11,0.15);color:#fbbf24">📊</div><div class="stat-value" id="sAvg">—</div><div class="stat-label">My Average</div></div>
+          <div class="stat-card"><div class="stat-icon" style="background:rgba(6,182,212,0.15);color:#67e8f9">🏆</div><div class="stat-value" id="sRank">—</div><div class="stat-label">Class Rank</div></div>
+        </div>
+        <div class="grid g-2">
+          <div class="card"><div class="card-header"><h3 style="font-size:1rem">My Performance</h3></div><div class="card-body"><canvas id="chartTrend" height="220"></canvas></div></div>
+          <div class="card"><div class="card-header"><h3 style="font-size:1rem">Subject Strengths</h3></div><div class="card-body"><canvas id="chartStrength" height="220"></canvas></div></div>
+        </div>
+      </div>
+
+      <!-- Available Tests -->
+      <div class="section hidden" id="secTests">
+        <h2 style="font-size:1.3rem;margin-bottom:20px">📝 Available Tests</h2>
+        <div id="availableTests"><div class="empty-state"><div class="empty-icon">📝</div><div class="empty-title">No tests available</div></div></div>
+      </div>
+
+      <!-- Test Engine -->
+      <div class="section hidden" id="secExam">
+        <div class="flex-between" style="margin-bottom:20px">
+          <div><h2 style="font-size:1.3rem" id="examTitle">Test</h2><p style="color:#64748b;font-size:0.85rem" id="examInfo"></p></div>
+          <div class="timer" id="examTimer">00:00</div>
+        </div>
+        <div id="examQuestions"></div>
+        <div style="margin-top:24px;display:flex;gap:12px">
+          <button class="btn btn-primary btn-lg" onclick="submitExam()">📤 Submit Test</button>
+          <div style="font-size:0.82rem;color:#64748b;display:flex;align-items:center;gap:6px"><span id="answeredCount">0</span> / <span id="totalQCount">0</span> answered</div>
+        </div>
+      </div>
+
+      <!-- Results -->
+      <div class="section hidden" id="secResults">
+        <h2 style="font-size:1.3rem;margin-bottom:20px">My Results</h2>
+        <div class="card"><div class="card-body"><div class="table-wrap"><table class="table"><thead><tr><th>Test</th><th>Subject</th><th>Score</th><th>%</th><th>Grade</th><th>Status</th><th>Date</th></tr></thead><tbody id="resultsTable"><tr><td colspan="7"><div class="empty-state"><div class="empty-icon">📋</div><div class="empty-title">No results yet</div></div></td></tr></tbody></table></div></div></div>
+      </div>
+
+      <!-- Progress -->
+      <div class="section hidden" id="secProgress">
+        <h2 style="font-size:1.3rem;margin-bottom:20px">My Progress</h2>
+        <div class="grid g-3" style="margin-bottom:24px">
+          <div class="card"><div class="card-body text-center"><div class="score-ring" id="progRingEl" style="--pct:0%;margin:0 auto 12px"><span class="score-ring-val" id="progAvg">—</span><span class="score-ring-lbl">Overall</span></div></div></div>
+          <div class="card"><div class="card-body text-center"><div class="stat-value" style="color:#10b981;font-size:2.5rem" id="progBest">—</div><div style="font-size:0.85rem;color:#94a3b8;margin-top:8px">Best Score</div></div></div>
+          <div class="card"><div class="card-body text-center"><div class="stat-value" style="font-size:2.5rem" id="progTests">0</div><div style="font-size:0.85rem;color:#94a3b8;margin-top:8px">Tests Taken</div></div></div>
+        </div>
+        <div class="card"><div class="card-header"><h3 style="font-size:1rem">Score History</h3></div><div class="card-body"><canvas id="chartHistory" height="250"></canvas></div></div>
+      </div>
+
+      <!-- Leaderboard -->
+      <div class="section hidden" id="secLeader">
+        <h2 style="font-size:1.3rem;margin-bottom:20px">🏆 Leaderboard</h2>
+        <div class="card"><div class="card-body"><div class="table-wrap"><table class="table"><thead><tr><th>Rank</th><th>Student</th><th>Avg Score</th><th>Tests</th></tr></thead><tbody id="leaderTable"><tr><td colspan="4"><div class="empty-state"><div class="empty-icon">🏆</div><div class="empty-title">No data yet</div></div></td></tr></tbody></table></div></div></div>
+      </div>
+
+      <!-- Certificates -->
+      <div class="section hidden" id="secCerts">
+        <h2 style="font-size:1.3rem;margin-bottom:20px">🎖️ My Certificates</h2>
+        <div id="certsList"><div class="empty-state"><div class="empty-icon">🎖️</div><div class="empty-title">No certificates yet</div><div class="empty-desc">Pass a test to earn your first certificate!</div></div></div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script src="js/shared.js"></script>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import { getAuth, onAuthStateChanged, signOut as fbSignOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+import { getFirestore, collection, getDocs, doc, getDoc, addDoc, query, where, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+const app = initializeApp({ apiKey:"AIzaSyCbSZRvUsFuepNW8W2D5x-5EwHEE_O2UdE", authDomain:"aixynztestseries-fc5da.firebaseapp.com", projectId:"aixynztestseries-fc5da", storageBucket:"aixynztestseries-fc5da.firebasestorage.app", messagingSenderId:"354795848617", appId:"1:354795848617:web:ab50b9095256b6febbfab8" });
+const auth = getAuth(app), db = getFirestore(app);
+let uid = null, userEmail = '', userName = '', schoolId = '', schoolName = '';
+let currentTest = null, examTimer = null, timeLeft = 0, answers = {};
+
+onAuthStateChanged(auth, async (u) => {
+  document.getElementById('pageLoader').style.opacity = '0';
+  setTimeout(() => document.getElementById('pageLoader').style.display = 'none', 500);
+  if (!u) { window.location.href = 'index.html'; return; }
+  uid = u.uid;
+  userEmail = u.email || '';
+  const ud = await getDoc(doc(db, 'users', u.uid));
+  if (!ud.exists() || ud.data().role !== 'student') { window.location.href = 'index.html'; return; }
+  const d = ud.data();
+  userName = d.displayName || 'Student';
+  schoolId = d.schoolId || '';
+  schoolName = d.schoolName || '';
+  document.getElementById('userName').textContent = userName;
+  document.getElementById('userAvatar').textContent = userName[0].toUpperCase();
+  document.getElementById('sidebarSchoolName').textContent = schoolName || 'ExamFlow';
+  document.getElementById('userSchoolName').textContent = schoolName || 'Student';
+  document.getElementById('topbarTitle').textContent = schoolName ? schoolName + ' — Student' : 'Student Dashboard';
+  loadAll();
+});
+window.signOut = () => fbSignOut(auth).then(() => window.location.href = 'index.html');
+
+async function loadAll() {
+  try {
+    await loadAvailableTests();
+    await loadMyResults();
+    await loadLeaderboard();
+    await loadCerts();
+  } catch (e) { console.error('loadAll:', e); }
+}
+
+// ── Available Tests ──
+async function loadAvailableTests() {
+  try {
+    let snap;
+    if (schoolId) {
+      snap = await getDocs(query(collection(db, 'tests'), where('schoolId', '==', schoolId), where('status', '==', 'published')));
+    } else {
+      snap = await getDocs(query(collection(db, 'tests'), where('status', '==', 'published')));
+    }
+    const c = document.getElementById('availableTests');
+    let count = 0;
+    c.innerHTML = '';
+
+    if (snap.empty) {
+      c.innerHTML = '<div class="empty-state"><div class="empty-icon">📝</div><div class="empty-title">No tests available</div><div class="empty-desc">Your teachers haven\'t published any tests yet</div></div>';
+      document.getElementById('sAvail').textContent = '0';
+      return;
+    }
+
+    snap.forEach(d => {
+      const t = d.data();
+      count++;
+      c.innerHTML += '<div class="card" style="margin-bottom:14px"><div class="card-body" style="display:flex;align-items:center;justify-content:space-between">'
+        + '<div>'
+        + '<h4 style="font-size:1rem;margin-bottom:6px">' + t.name + '</h4>'
+        + '<div style="display:flex;gap:6px;flex-wrap:wrap">'
+        + '<span class="badge badge-info">' + (t.subject || 'General') + '</span>'
+        + '<span class="badge badge-secondary">⏱️ ' + (t.timeLimit || 60) + ' min</span>'
+        + '<span class="badge badge-secondary">' + (t.totalMarks || 100) + ' marks</span>'
+        + '<span class="badge badge-secondary">' + ((t.questions || []).length) + ' Q</span>'
+        + (t.teacherName ? '<span class="badge badge-primary">By: ' + t.teacherName + '</span>' : '')
+        + '</div>'
+        + (t.instructions ? '<p style="font-size:0.82rem;color:#64748b;margin-top:8px">' + t.instructions + '</p>' : '')
+        + '</div>'
+        + '<button class="btn btn-primary" onclick="startTest(\'' + d.id + '\')">▶ Start</button>'
+        + '</div></div>';
+    });
+    document.getElementById('sAvail').textContent = count;
+  } catch (e) { console.error('loadTests:', e); }
+}
+
+// ── Start Test ──
+window.startTest = async (testId) => {
+  try {
+    const testDoc = await getDoc(doc(db, 'tests', testId));
+    if (!testDoc.exists()) { showToast('Test not found!', 'error'); return; }
+    currentTest = { id: testId, ...testDoc.data() };
+    answers = {};
+
+    const qs = currentTest.questions || [];
+    if (!qs.length) { showToast('This test has no questions', 'error'); return; }
+
+    // Shuffle if enabled
+    if (currentTest.shuffle) {
+      for (let i = qs.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [qs[i], qs[j]] = [qs[j], qs[i]];
+      }
+    }
+
+    document.getElementById('examTitle').textContent = currentTest.name;
+    document.getElementById('examInfo').textContent = (currentTest.subject || '') + ' • ' + qs.length + ' Questions • ' + (currentTest.totalMarks || 100) + ' Marks • Pass: ' + (currentTest.passingMarks || 35);
+    document.getElementById('totalQCount').textContent = qs.length;
+    showSection('secExam', null);
+
+    // Lock sidebar during exam
+    document.getElementById('sidebarMain').style.pointerEvents = 'none';
+    document.getElementById('sidebarMain').style.opacity = '0.4';
+
+    // Render questions
+    const container = document.getElementById('examQuestions');
+    container.innerHTML = qs.map((q, i) => {
+      let h = '<div class="card" style="margin-bottom:16px"><div class="card-body">';
+      h += '<div style="display:flex;gap:8px;align-items:center;margin-bottom:10px"><span class="q-type-badge q-type-' + q.type + '">' + qTypeLabel(q.type) + '</span><span style="font-size:0.85rem;color:#94a3b8">Q' + (i + 1) + ' • ' + q.marks + ' marks</span></div>';
+      h += '<p style="font-size:0.95rem;margin-bottom:14px;line-height:1.6">' + (q.text || 'Question') + '</p>';
+
+      if (q.type === 'mcq') {
+        h += (q.options || []).map((o, j) => {
+          if (!o.trim()) return '';
+          return '<label style="display:flex;align-items:center;gap:10px;padding:12px 16px;border-radius:10px;border:1px solid rgba(255,255,255,0.06);margin-bottom:6px;cursor:pointer;transition:all 0.2s" onmouseover="this.style.borderColor=\'rgba(99,102,241,0.3)\'" onmouseout="this.style.borderColor=\'rgba(255,255,255,0.06)\'"><input type="radio" name="q' + i + '" value="' + String.fromCharCode(65 + j) + '" onchange="setAnswer(' + i + ',this.value)" style="accent-color:#6366f1"/><span>' + String.fromCharCode(65 + j) + '. ' + o + '</span></label>';
+        }).join('');
+      } else if (q.type === 'multi') {
+        h += (q.options || []).map((o, j) => {
+          if (!o.trim()) return '';
+          return '<label style="display:flex;align-items:center;gap:10px;padding:12px 16px;border-radius:10px;border:1px solid rgba(255,255,255,0.06);margin-bottom:6px;cursor:pointer"><input type="checkbox" class="mq' + i + '" value="' + String.fromCharCode(65 + j) + '" onchange="updateMulti(' + i + ')" style="accent-color:#6366f1"/><span>' + String.fromCharCode(65 + j) + '. ' + o + '</span></label>';
+        }).join('');
+      } else if (q.type === 'true-false') {
+        h += '<div style="display:flex;gap:12px"><label style="display:flex;gap:8px;padding:12px 24px;border-radius:10px;border:1px solid rgba(255,255,255,0.06);cursor:pointer"><input type="radio" name="q' + i + '" value="true" onchange="setAnswer(' + i + ',\'true\')" style="accent-color:#6366f1"/> True</label><label style="display:flex;gap:8px;padding:12px 24px;border-radius:10px;border:1px solid rgba(255,255,255,0.06);cursor:pointer"><input type="radio" name="q' + i + '" value="false" onchange="setAnswer(' + i + ',\'false\')" style="accent-color:#6366f1"/> False</label></div>';
+      } else if (q.type === 'numerical') {
+        h += '<input type="number" step="any" class="form-control" style="max-width:250px" placeholder="Enter your answer" oninput="setAnswer(' + i + ',this.value)"/>';
+      } else if (q.type === 'short') {
+        h += '<input class="form-control" style="max-width:450px" placeholder="Type your answer" oninput="setAnswer(' + i + ',this.value)"/>';
+      } else if (q.type === 'descriptive') {
+        h += '<textarea class="form-control" rows="6" placeholder="Write your detailed answer..." oninput="setAnswer(' + i + ',this.value)"></textarea>';
+      }
+      return h + '</div></div>';
+    }).join('');
+
+    // Start timer
+    timeLeft = (currentTest.timeLimit || 60) * 60;
+    updateTimerDisplay();
+    if (examTimer) clearInterval(examTimer);
+    examTimer = setInterval(() => {
+      timeLeft--;
+      updateTimerDisplay();
+      if (timeLeft <= 0) {
+        clearInterval(examTimer);
+        showToast('⏰ Time is up! Auto-submitting...', 'warning');
+        submitExam();
+      }
+    }, 1000);
+  } catch (e) {
+    console.error(e);
+    showToast('Error starting test: ' + e.message, 'error');
+  }
+};
+
+window.setAnswer = (idx, val) => {
+  answers[idx] = val;
+  document.getElementById('answeredCount').textContent = Object.keys(answers).filter(k => answers[k]).length;
+};
+
+window.updateMulti = (idx) => {
+  answers[idx] = Array.from(document.querySelectorAll('.mq' + idx + ':checked')).map(c => c.value).sort().join(',');
+  document.getElementById('answeredCount').textContent = Object.keys(answers).filter(k => answers[k]).length;
+};
+
+function updateTimerDisplay() {
+  const el = document.getElementById('examTimer');
+  const m = Math.floor(timeLeft / 60), s = timeLeft % 60;
+  el.textContent = String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
+  if (timeLeft < 300) {
+    el.className = 'timer';
+    el.style.animation = timeLeft < 60 ? 'pulse 1s infinite' : '';
+  } else {
+    el.className = 'timer warning';
+  }
+}
+
+// ── Submit Exam ──
+window.submitExam = async () => {
+  if (examTimer) clearInterval(examTimer);
+  if (!currentTest) return;
+
+  if (!confirm('Submit this test? You cannot change your answers after.')) {
+    // Restart timer
+    examTimer = setInterval(() => {
+      timeLeft--;
+      updateTimerDisplay();
+      if (timeLeft <= 0) { clearInterval(examTimer); submitExam(); }
+    }, 1000);
+    return;
+  }
+
+  const qs = currentTest.questions || [];
+  let score = 0;
+  let totalMarks = 0;
+  let hasDescriptive = false;
+
+  qs.forEach((q, i) => {
+    totalMarks += q.marks;
+    const ans = (answers[i] || '').trim();
+
+    if (q.type === 'descriptive') {
+      hasDescriptive = true;
+      return; // Skip auto-grading
+    }
+
+    if (!ans) return; // Unanswered
+
+    if (q.type === 'mcq' || q.type === 'true-false') {
+      if (ans.toLowerCase() === String(q.correct).toLowerCase()) {
+        score += q.marks;
+      } else if (currentTest.negativeMarking) {
+        score -= Math.round(q.marks * 0.25);
+      }
+    } else if (q.type === 'multi') {
+      const studentAns = ans.toUpperCase().split(',').sort().join(',');
+      const correctAns = String(q.correct).toUpperCase().split(',').map(s => s.trim()).sort().join(',');
+      if (studentAns === correctAns) score += q.marks;
+    } else if (q.type === 'numerical') {
+      if (Math.abs(parseFloat(ans) - parseFloat(q.correct)) < 0.01) score += q.marks;
+    } else if (q.type === 'short') {
+      if (ans.toLowerCase().trim() === String(q.correct).toLowerCase().trim()) score += q.marks;
+    }
+  });
+
+  if (score < 0) score = 0;
+  const pct = totalMarks ? Math.round((score / totalMarks) * 100) : 0;
+  const passingMarks = currentTest.passingMarks || 35;
+  const passingPct = currentTest.totalMarks ? Math.round((passingMarks / currentTest.totalMarks) * 100) : 35;
+  const passed = pct >= passingPct;
+  const g = getGrade(pct);
+
+  // Save result
+  try {
+    await addDoc(collection(db, 'results'), {
+      studentId: uid, studentEmail: userEmail, studentName: userName,
+      testId: currentTest.id, testName: currentTest.name, subject: currentTest.subject || '',
+      score, totalMarks, percentage: pct, grade: g.grade, passed,
+      passingPct, hasDescriptive,
+      teacherId: currentTest.teacherId || '',
+      schoolId, schoolName,
+      answers: JSON.parse(JSON.stringify(answers)),
+      submittedAt: serverTimestamp()
+    });
+
+    // Generate certificate if passed
+    if (passed) {
+      const certId = 'CERT-' + generateId();
+      await addDoc(collection(db, 'certificates'), {
+        studentId: uid, studentName: userName, studentEmail: userEmail,
+        testName: currentTest.name, subject: currentTest.subject || '',
+        score, totalMarks, percentage: pct, grade: g.grade,
+        className: currentTest.className || '', division: currentTest.division || '',
+        schoolName, certId,
+        createdAt: serverTimestamp()
+      });
+    }
+  } catch (e) { console.error('Save result error:', e); }
+
+  // Unlock sidebar
+  document.getElementById('sidebarMain').style.pointerEvents = '';
+  document.getElementById('sidebarMain').style.opacity = '1';
+
+  // Show result
+  currentTest = null;
+  showSection('secResults', 'navResults');
+
+  const msg = passed
+    ? '🎉 Congratulations! You passed with ' + pct + '% (Grade: ' + g.grade + ')'
+    : '📊 Score: ' + pct + '% (Grade: ' + g.grade + ') — ' + (passingPct - pct) + '% more needed to pass';
+  showToast(msg, passed ? 'success' : 'info', 5000);
+
+  if (hasDescriptive) {
+    showToast('Note: Descriptive answers need manual grading by teacher', 'info', 5000);
+  }
+
+  await loadAll();
+};
+
+// ── My Results ──
+async function loadMyResults() {
+  try {
+    const snap = await getDocs(query(collection(db, 'results'), where('studentId', '==', uid)));
+    const tbody = document.getElementById('resultsTable');
+
+    if (snap.empty) {
+      tbody.innerHTML = '<tr><td colspan="7"><div class="empty-state"><div class="empty-icon">📋</div><div class="empty-title">No results yet</div><div class="empty-desc">Take a test to see your results here</div></div></td></tr>';
+      document.getElementById('sCompleted').textContent = '0';
+      // Empty charts
+      safeChart('chartTrend', { type: 'line', data: { labels: ['No data'], datasets: [{ label: 'Score %', data: [0], borderColor: '#818cf8', backgroundColor: 'rgba(99,102,241,0.1)', fill: true }] }, options: { responsive: true, scales: { y: { min: 0, max: 100 } } } });
+      safeChart('chartStrength', { type: 'polarArea', data: { labels: ['No data'], datasets: [{ data: [0], backgroundColor: ['rgba(99,102,241,0.3)'] }] }, options: { responsive: true } });
+      safeChart('chartHistory', { type: 'bar', data: { labels: ['No data'], datasets: [{ label: 'Score', data: [0], backgroundColor: '#6366f1' }] }, options: { responsive: true, scales: { y: { min: 0, max: 100 } } } });
+      return;
+    }
+
+    tbody.innerHTML = '';
+    let total = 0, sum = 0, best = 0;
+    const scores = [], labels = [], subjects = {};
+
+    snap.forEach(d => {
+      const r = d.data();
+      total++;
+      sum += (r.percentage || 0);
+      if ((r.percentage || 0) > best) best = r.percentage;
+      scores.push(r.percentage || 0);
+      labels.push(r.testName || 'Test ' + total);
+      const sub = r.subject || 'General';
+      if (!subjects[sub]) subjects[sub] = [];
+      subjects[sub].push(r.percentage || 0);
+
+      const g = getGrade(r.percentage || 0);
+      tbody.innerHTML += '<tr><td>' + (r.testName || '—') + '</td><td>' + (r.subject || '—') + '</td><td><strong>' + (r.score || 0) + '/' + (r.totalMarks || 0) + '</strong></td><td style="color:' + g.color + ';font-weight:700">' + (r.percentage || 0) + '%</td><td><span class="badge ' + (r.passed ? 'badge-success' : 'badge-danger') + '">' + g.grade + '</span></td><td><span class="badge ' + (r.passed ? 'badge-success' : 'badge-danger') + '">' + (r.passed ? 'PASS' : 'FAIL') + '</span></td><td>' + formatDate(r.submittedAt) + '</td></tr>';
+    });
+
+    const avg = total ? Math.round(sum / total) : 0;
+    document.getElementById('sCompleted').textContent = total;
+    document.getElementById('sAvg').textContent = total ? avg + '%' : '—';
+    document.getElementById('progAvg').textContent = avg + '%';
+    document.getElementById('progRingEl').style.setProperty('--pct', avg + '%');
+    document.getElementById('progBest').textContent = best + '%';
+    document.getElementById('progTests').textContent = total;
+
+    // Charts
+    safeChart('chartTrend', {
+      type: 'line',
+      data: { labels, datasets: [{ label: 'Score %', data: scores, borderColor: '#818cf8', backgroundColor: 'rgba(99,102,241,0.1)', fill: true, tension: 0.4, pointRadius: 5, pointBackgroundColor: '#818cf8' }] },
+      options: { responsive: true, plugins: { legend: { labels: { color: '#94a3b8' } } }, scales: { x: { ticks: { color: '#64748b', maxRotation: 45 }, grid: { color: 'rgba(255,255,255,0.04)' } }, y: { min: 0, max: 100, ticks: { color: '#64748b' }, grid: { color: 'rgba(255,255,255,0.04)' } } } }
+    });
+
+    const subLabels = Object.keys(subjects);
+    const subData = subLabels.map(s => Math.round(subjects[s].reduce((a, b) => a + b, 0) / subjects[s].length));
+    const colors = ['rgba(99,102,241,0.5)', 'rgba(6,182,212,0.5)', 'rgba(239,68,68,0.5)', 'rgba(16,185,129,0.5)', 'rgba(245,158,11,0.5)', 'rgba(168,85,247,0.5)'];
+    safeChart('chartStrength', {
+      type: 'polarArea',
+      data: { labels: subLabels, datasets: [{ data: subData, backgroundColor: colors }] },
+      options: { responsive: true, scales: { r: { ticks: { display: false }, grid: { color: 'rgba(255,255,255,0.06)' } } }, plugins: { legend: { labels: { color: '#94a3b8' } } } }
+    });
+
+    safeChart('chartHistory', {
+      type: 'bar',
+      data: { labels, datasets: [{ label: 'Score %', data: scores, backgroundColor: scores.map(s => s >= 60 ? '#10b981' : s >= 35 ? '#f59e0b' : '#ef4444'), borderRadius: 8 }] },
+      options: { responsive: true, plugins: { legend: { display: false } }, scales: { x: { ticks: { color: '#64748b', maxRotation: 45 }, grid: { display: false } }, y: { min: 0, max: 100, ticks: { color: '#64748b' }, grid: { color: 'rgba(255,255,255,0.04)' } } } }
+    });
+  } catch (e) { console.error('loadResults:', e); }
+}
+
+// ── Leaderboard ──
+async function loadLeaderboard() {
+  try {
+    let snap;
+    if (schoolId) {
+      snap = await getDocs(query(collection(db, 'results'), where('schoolId', '==', schoolId)));
+    } else {
+      snap = await getDocs(collection(db, 'results'));
+    }
+    const stuMap = {};
+    snap.forEach(d => {
+      const r = d.data();
+      const sid = r.studentId || 'unknown';
+      if (!stuMap[sid]) stuMap[sid] = { name: r.studentName || 'Student', scores: [], count: 0 };
+      stuMap[sid].scores.push(r.percentage || 0);
+      stuMap[sid].count++;
+    });
+    const entries = Object.entries(stuMap).map(([id, s]) => ({
+      id, name: s.name,
+      avg: Math.round(s.scores.reduce((a, b) => a + b, 0) / s.scores.length),
+      count: s.count
+    })).sort((a, b) => b.avg - a.avg);
+
+    const tbody = document.getElementById('leaderTable');
+    if (!entries.length) {
+      tbody.innerHTML = '<tr><td colspan="4"><div class="empty-state"><div class="empty-icon">🏆</div><div class="empty-title">No leaderboard data</div></div></td></tr>';
+      return;
+    }
+    tbody.innerHTML = '';
+    entries.forEach((e, i) => {
+      const r = i + 1;
+      if (e.id === uid) document.getElementById('sRank').textContent = '#' + r;
+      const isMe = e.id === uid;
+      tbody.innerHTML += '<tr style="' + (isMe ? 'background:rgba(99,102,241,0.08)' : '') + '">'
+        + '<td>' + (r <= 3 ? '<div class="rank-badge rank-' + r + '">' + r + '</div>' : '<span style="color:#64748b;font-weight:600;padding-left:8px">' + r + '</span>') + '</td>'
+        + '<td><strong>' + e.name + '</strong>' + (isMe ? ' <span class="badge badge-primary">You</span>' : '') + '</td>'
+        + '<td style="font-weight:600">' + e.avg + '%</td>'
+        + '<td>' + e.count + '</td></tr>';
+    });
+  } catch (e) { console.error('loadLeaderboard:', e); }
+}
+
+// ── Certificates ──
+async function loadCerts() {
+  try {
+    const snap = await getDocs(query(collection(db, 'certificates'), where('studentId', '==', uid)));
+    const c = document.getElementById('certsList');
+    if (snap.empty) {
+      c.innerHTML = '<div class="empty-state"><div class="empty-icon">🎖️</div><div class="empty-title">No certificates yet</div><div class="empty-desc">Pass a test to earn your first certificate!</div></div>';
+      return;
+    }
+    c.innerHTML = '';
+    snap.forEach(d => {
+      const cert = d.data();
+      const safeStr = (s) => (s || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+      c.innerHTML += '<div class="card" style="margin-bottom:14px"><div class="card-body" style="display:flex;align-items:center;justify-content:space-between"><div><h4 style="font-size:1rem;margin-bottom:6px">🎖️ ' + (cert.testName || 'Test') + '</h4><div style="display:flex;gap:6px;flex-wrap:wrap"><span class="badge badge-success">' + (cert.grade || 'A') + '</span><span class="badge badge-info">' + (cert.percentage || 0) + '%</span><span class="badge badge-secondary">' + (cert.certId || '') + '</span><span class="badge badge-primary">' + (cert.schoolName || '') + '</span></div></div><button class="btn btn-primary btn-sm" onclick="downloadCert(\'' + safeStr(cert.studentName) + '\',\'' + safeStr(cert.testName) + '\',\'' + safeStr(cert.subject) + '\',' + (cert.score || 0) + ',' + (cert.totalMarks || 0) + ',' + (cert.percentage || 0) + ',\'' + safeStr(cert.grade) + '\',\'' + safeStr(cert.certId) + '\',\'' + safeStr(cert.className) + '\',\'' + safeStr(cert.division) + '\',\'' + safeStr(cert.schoolName) + '\')">📥 Download PDF</button></div></div>';
+    });
+  } catch (e) { console.error('loadCerts:', e); }
+}
+
+window.downloadCert = (name, test, subject, score, total, pct, grade, certId, cls, div, school) => {
+  try {
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF('landscape', 'mm', 'a4');
+    const w = 297, h = 210;
+
+    // Border
+    pdf.setDrawColor(99, 102, 241);
+    pdf.setLineWidth(2);
+    pdf.rect(10, 10, w - 20, h - 20);
+    pdf.setDrawColor(129, 140, 248);
+    pdf.setLineWidth(0.5);
+    pdf.rect(14, 14, w - 28, h - 28);
+
+    // Title
+    pdf.setFontSize(32);
+    pdf.setTextColor(99, 102, 241);
+    pdf.text('CERTIFICATE OF ACHIEVEMENT', w / 2, 45, { align: 'center' });
+
+    // School
+    pdf.setFontSize(14);
+    pdf.setTextColor(100);
+    pdf.text(school || 'ExamFlow Pro', w / 2, 58, { align: 'center' });
+
+    // Divider
+    pdf.setDrawColor(99, 102, 241);
+    pdf.setLineWidth(0.8);
+    pdf.line(60, 66, w - 60, 66);
+
+    // Body
+    pdf.setFontSize(14);
+    pdf.setTextColor(60);
+    pdf.text('This is to certify that', w / 2, 82, { align: 'center' });
+
+    pdf.setFontSize(28);
+    pdf.setTextColor(30);
+    pdf.text(name || 'Student', w / 2, 96, { align: 'center' });
+
+    pdf.setFontSize(12);
+    pdf.setTextColor(80);
+    if (cls || div) pdf.text('Class: ' + (cls || '') + ' | Division: ' + (div || ''), w / 2, 106, { align: 'center' });
+    pdf.text('has successfully passed the examination', w / 2, 118, { align: 'center' });
+
+    pdf.setFontSize(20);
+    pdf.setTextColor(99, 102, 241);
+    pdf.text('"' + (test || 'Test') + '"', w / 2, 132, { align: 'center' });
+
+    pdf.setFontSize(12);
+    pdf.setTextColor(80);
+    pdf.text('Subject: ' + (subject || 'General') + '   |   Score: ' + score + '/' + total + ' (' + pct + '%)   |   Grade: ' + grade, w / 2, 145, { align: 'center' });
+
+    // Signature lines
+    pdf.setDrawColor(180);
+    pdf.line(45, 168, 125, 168);
+    pdf.line(w - 125, 168, w - 45, 168);
+    pdf.setFontSize(10);
+    pdf.setTextColor(120);
+    pdf.text('Date: ' + new Date().toLocaleDateString('en-IN'), 85, 176, { align: 'center' });
+    pdf.text('Authorized Signature', w - 85, 176, { align: 'center' });
+
+    // Footer
+    pdf.setFontSize(8);
+    pdf.setTextColor(160);
+    pdf.text('Certificate ID: ' + (certId || 'N/A') + '  |  Powered by ExamFlow Pro', w / 2, 192, { align: 'center' });
+
+    pdf.save('Certificate_' + (name || 'Student') + '_' + (test || 'Test') + '.pdf');
+    showToast('Certificate downloaded!', 'success');
+  } catch (e) {
+    console.error('PDF error:', e);
+    showToast('Error generating PDF: ' + e.message, 'error');
+  }
+};
+</script>
+</body>
+</html>
