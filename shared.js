@@ -43,6 +43,59 @@ window.getGrade = (pct) => {
 
 window.generateId = () => Math.random().toString(36).substr(2, 9).toUpperCase();
 
+// ─── Data normalization helpers ───
+window.normalizeEmail = (value) => String(value || '').trim().toLowerCase();
+window.normalizeRole = (value) => String(value || '').trim().toLowerCase();
+window.normalizeClassName = (value) => String(value || '').trim();
+window.normalizeDivision = (value) => String(value || '').trim().toUpperCase();
+window.safeText = (value, fallback = '') => {
+  const text = String(value == null ? '' : value).trim();
+  return text || fallback;
+};
+
+window.safeChart = (canvasId, config) => {
+  if (!window.Chart || !canvasId || !config) return null;
+  const canvas = document.getElementById(canvasId);
+  if (!canvas) return null;
+
+  if (!window.__chartRegistry) window.__chartRegistry = {};
+  if (window.__chartRegistry[canvasId]) {
+    window.__chartRegistry[canvasId].destroy();
+  }
+
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return null;
+
+  window.__chartRegistry[canvasId] = new window.Chart(ctx, config);
+  return window.__chartRegistry[canvasId];
+};
+
+// Theme helpers
+window.applyTheme = (theme) => {
+  const resolved = theme === 'light' || theme === 'dark'
+    ? theme
+    : (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+  document.documentElement.setAttribute('data-theme', resolved);
+  localStorage.setItem('examflow-theme', resolved);
+  document.querySelectorAll('[data-theme-toggle]').forEach((btn) => {
+    btn.textContent = resolved === 'dark' ? 'Light' : 'Dark';
+    btn.setAttribute('aria-label', resolved === 'dark' ? 'Switch to light mode' : 'Switch to dark mode');
+    btn.title = resolved === 'dark' ? 'Switch to light mode' : 'Switch to dark mode';
+  });
+};
+
+window.toggleTheme = () => {
+  const current = document.documentElement.getAttribute('data-theme') || 'dark';
+  applyTheme(current === 'dark' ? 'light' : 'dark');
+};
+
+window.initTheme = () => {
+  const saved = localStorage.getItem('examflow-theme');
+  applyTheme(saved || 'dark');
+};
+
+window.initTheme();
+
 // ─── Sidebar Nav Activation ───
 window.activateNav = (id) => {
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
