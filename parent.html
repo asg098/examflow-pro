@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-  <title>Parent Dashboard — ExamFlow Pro</title>
+  <title>Parent Dashboard - ExamFlow</title>
   <link rel="stylesheet" href="css/styles.css"/>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 </head>
@@ -12,7 +12,7 @@
 
 <div class="app-layout">
   <aside class="sidebar">
-    <div class="sidebar-logo"><div class="logo-icon">👨‍👩‍👧</div><div><div class="logo-text" id="sidebarSchoolName">ExamFlow</div><div class="logo-sub">Parent View</div></div></div>
+    <div class="sidebar-logo"><div class="logo-icon">PR</div><div><div class="logo-text" id="sidebarSchoolName">ExamFlow</div><div class="logo-sub">Parent View</div><div class="brand-initiative">Initiative by Judiq AI</div></div></div>
     <nav class="sidebar-nav">
       <div class="nav-section-title">Main</div>
       <button class="nav-item active" id="navDash" onclick="showSection('secDash','navDash')"><span class="nav-icon">📊</span>Overview</button>
@@ -27,8 +27,7 @@
   </aside>
 
   <main class="main-content">
-    <header class="topbar"><span class="topbar-title">Parent Dashboard</span>
-    <div class="topbar-actions">
+    <header class="topbar"><div class="topbar-meta"><span class="topbar-title">Parent Dashboard</span><span class="topbar-subtitle">An initiative by Judiq AI</span></div><div class="topbar-actions"><button class="topbar-btn" data-theme-toggle onclick="toggleTheme()">Theme</button>
       <div style="display:flex;align-items:center;gap:8px"><input class="form-control" id="childEmail" placeholder="Child's email" style="width:220px;padding:8px 14px;font-size:0.82rem"/><button class="btn btn-sm btn-primary" onclick="linkChild()">Link</button></div>
     </div></header>
     <div class="page-content">
@@ -71,36 +70,78 @@
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { getAuth, onAuthStateChanged, signOut as fbSignOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-import { getFirestore, collection, getDocs, doc, getDoc, query, where } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { getFirestore, collection, getDocs, doc, getDoc, updateDoc, query, where } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 const app = initializeApp({ apiKey:"AIzaSyCbSZRvUsFuepNW8W2D5x-5EwHEE_O2UdE", authDomain:"aixynztestseries-fc5da.firebaseapp.com", projectId:"aixynztestseries-fc5da", storageBucket:"aixynztestseries-fc5da.firebasestorage.app", messagingSenderId:"354795848617", appId:"1:354795848617:web:ab50b9095256b6febbfab8" });
-const auth = getAuth(app), db = getFirestore(app);
+const auth = getAuth(app);
+const db = getFirestore(app);
+let parentUid = '';
+let parentSchoolId = '';
 
 onAuthStateChanged(auth, async (u) => {
   document.getElementById('pageLoader').style.opacity = '0';
   setTimeout(() => document.getElementById('pageLoader').style.display = 'none', 500);
   if (!u) { window.location.href = 'index.html'; return; }
-  const ud = await getDoc(doc(db, 'users', u.uid));
-  if (!ud.exists() || ud.data().role !== 'parent') { window.location.href = 'index.html'; return; }
-  const d = ud.data();
-  document.getElementById('userName').textContent = d.displayName || 'Parent';
-  document.getElementById('userAvatar').textContent = (d.displayName || 'P')[0].toUpperCase();
-  document.getElementById('sidebarSchoolName').textContent = d.schoolName || 'ExamFlow';
-  if (d.childEmail) { document.getElementById('childEmail').value = d.childEmail; linkChild(); }
+
+  const userSnap = await getDoc(doc(db, 'users', u.uid));
+  if (!userSnap.exists() || userSnap.data().role !== 'parent') { window.location.href = 'index.html'; return; }
+
+  const userData = userSnap.data();
+  parentUid = u.uid;
+  parentSchoolId = userData.schoolId || '';
+  document.getElementById('userName').textContent = userData.displayName || 'Parent';
+  document.getElementById('userAvatar').textContent = (userData.displayName || 'P')[0].toUpperCase();
+  document.getElementById('sidebarSchoolName').textContent = userData.schoolName || 'ExamFlow';
+  if (userData.childEmail) {
+    document.getElementById('childEmail').value = userData.childEmail;
+    await linkChild();
+  }
 });
+
 window.signOut = () => fbSignOut(auth).then(() => window.location.href = 'index.html');
 
 window.linkChild = async () => {
-  const email = document.getElementById('childEmail').value.trim();
+  const email = document.getElementById('childEmail').value.trim().toLowerCase();
   if (!email) { showToast('Enter child email', 'warning'); return; }
-  const snap = await getDocs(query(collection(db, 'results'), where('studentEmail', '==', email)));
-  if (snap.empty) { document.getElementById('childName').textContent = email + ' — no results found'; return; }
-  const results = []; let name = email;
-  snap.forEach(d => { const r = d.data(); results.push(r); if (r.studentName) name = r.studentName; });
-  document.getElementById('childName').textContent = name;
 
+  const childSnap = await getDocs(query(collection(db, 'users'), where('email', '==', email), where('role', '==', 'student')));
+  if (childSnap.empty) {
+    document.getElementById('childName').textContent = email + ' - no student found';
+    return;
+  }
+
+  const child = childSnap.docs[0].data();
+  if (parentSchoolId && child.schoolId && parentSchoolId !== child.schoolId) {
+    showToast('This student belongs to another school.', 'error');
+    return;
+  }
+
+  const resultSnap = await getDocs(query(collection(db, 'results'), where('studentEmail', '==', email)));
+  await updateDoc(doc(db, 'users', parentUid), { childEmail: email, schoolId: child.schoolId || parentSchoolId, schoolName: child.schoolName || '' });
+
+  if (resultSnap.empty) {
+    document.getElementById('childName').textContent = (child.displayName || email) + ' - no results found yet';
+    document.getElementById('resultsTable').innerHTML = '<tr><td colspan="6"><div class="empty-state"><div class="empty-title">No results yet</div></div></td></tr>';
+    document.getElementById('weakAreas').innerHTML = '<p style="color:#64748b">No results yet for this student.</p>';
+    document.getElementById('pTests').textContent = '0';
+    document.getElementById('pAvg').textContent = '-';
+    document.getElementById('pBest').textContent = '-';
+    document.getElementById('pPassRate').textContent = '-';
+    initCharts([], {});
+    return;
+  }
+
+  const results = [];
+  resultSnap.forEach(d => results.push(d.data()));
+  results.sort((a, b) => {
+    const aTime = a.submittedAt?.seconds || 0;
+    const bTime = b.submittedAt?.seconds || 0;
+    return aTime - bTime;
+  });
+
+  document.getElementById('childName').textContent = child.displayName || email;
   const total = results.length;
-  const avg = Math.round(results.reduce((s, r) => s + (r.percentage || 0), 0) / total);
+  const avg = Math.round(results.reduce((sum, r) => sum + (r.percentage || 0), 0) / total);
   const best = Math.max(...results.map(r => r.percentage || 0));
   const passRate = Math.round((results.filter(r => r.passed).length / total) * 100);
   document.getElementById('pTests').textContent = total;
@@ -108,45 +149,59 @@ window.linkChild = async () => {
   document.getElementById('pBest').textContent = best + '%';
   document.getElementById('pPassRate').textContent = passRate + '%';
 
-  // Results table
-  const tbody = document.getElementById('resultsTable'); tbody.innerHTML = '';
-  results.forEach(r => { const g = getGrade(r.percentage || 0);
-    tbody.innerHTML += '<tr><td>' + r.testName + '</td><td>' + (r.subject || '—') + '</td><td><strong>' + r.score + '/' + r.totalMarks + '</strong></td><td style="color:' + g.color + ';font-weight:700">' + r.percentage + '%</td><td><span class="badge ' + (r.passed ? 'badge-success' : 'badge-danger') + '">' + g.grade + '</span></td><td><span class="badge ' + (r.passed ? 'badge-success' : 'badge-danger') + '">' + (r.passed ? 'PASS' : 'FAIL') + '</span></td></tr>';
+  const tbody = document.getElementById('resultsTable');
+  tbody.innerHTML = '';
+  results.forEach(r => {
+    const grade = getGrade(r.percentage || 0);
+    tbody.innerHTML += '<tr><td>' + (r.testName || '-') + '</td><td>' + (r.subject || '-') + '</td><td><strong>' + (r.score || 0) + '/' + (r.totalMarks || 0) + '</strong></td><td style="color:' + grade.color + ';font-weight:700">' + (r.percentage || 0) + '%</td><td><span class="badge ' + (r.passed ? 'badge-success' : 'badge-danger') + '">' + grade.grade + '</span></td><td><span class="badge ' + (r.passed ? 'badge-success' : 'badge-danger') + '">' + (r.passed ? 'PASS' : 'FAIL') + '</span></td></tr>';
   });
 
-  // Weak areas
   const subjectScores = {};
-  results.forEach(r => { const sub = r.subject || 'General'; if (!subjectScores[sub]) subjectScores[sub] = []; subjectScores[sub].push(r.percentage || 0); });
-  const weakHtml = Object.entries(subjectScores).filter(([, s]) => s.reduce((a, b) => a + b, 0) / s.length < 60).map(([sub, s]) => {
-    const subAvg = Math.round(s.reduce((a, b) => a + b, 0) / s.length);
-    return '<div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:rgba(239,68,68,0.06);border:1px solid rgba(239,68,68,0.15);border-radius:10px;margin-bottom:8px"><div><strong>' + sub + '</strong><span style="color:#64748b;font-size:0.82rem;margin-left:8px">Avg: ' + subAvg + '%</span></div><span class="badge badge-danger">Needs Work</span></div>';
-  }).join('');
-  document.getElementById('weakAreas').innerHTML = weakHtml || '<p style="color:#10b981">✅ No weak areas — great performance!</p>';
+  results.forEach(r => {
+    const subject = r.subject || 'General';
+    if (!subjectScores[subject]) subjectScores[subject] = [];
+    subjectScores[subject].push(r.percentage || 0);
+  });
+
+  const weakHtml = Object.entries(subjectScores)
+    .filter(([, scores]) => scores.reduce((a, b) => a + b, 0) / scores.length < 60)
+    .map(([subject, scores]) => {
+      const subAvg = Math.round(scores.reduce((a, b) => a + b, 0) / scores.length);
+      return '<div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:rgba(239,68,68,0.06);border:1px solid rgba(239,68,68,0.15);border-radius:10px;margin-bottom:8px"><div><strong>' + subject + '</strong><span style="color:#64748b;font-size:0.82rem;margin-left:8px">Avg: ' + subAvg + '%</span></div><span class="badge badge-danger">Needs Work</span></div>';
+    }).join('');
+  document.getElementById('weakAreas').innerHTML = weakHtml || '<p style="color:#10b981">No weak areas right now.</p>';
 
   initCharts(results, subjectScores);
 };
 
 function initCharts(results, subjects) {
-  try {
-    if (window._c1) window._c1.destroy(); if (window._c2) window._c2.destroy(); if (window._c3) window._c3.destroy();
-    const labels = results.map((_, i) => 'Test ' + (i + 1));
-    const data = results.map(r => r.percentage || 0);
-    window._c1 = new Chart(document.getElementById('chartTrend'), {
-      type: 'line', data: { labels, datasets: [{ label: 'Score %', data, borderColor: '#818cf8', backgroundColor: 'rgba(99,102,241,0.1)', fill: true, tension: 0.4 }] },
-      options: { responsive: true, plugins: { legend: { labels: { color: '#94a3b8' } } }, scales: { x: { ticks: { color: '#64748b' }, grid: { color: 'rgba(255,255,255,0.04)' } }, y: { min: 0, max: 100, ticks: { color: '#64748b' }, grid: { color: 'rgba(255,255,255,0.04)' } } } }
-    });
-    const subs = Object.keys(subjects);
-    const subAvgs = subs.map(s => Math.round(subjects[s].reduce((a, b) => a + b, 0) / subjects[s].length));
-    window._c2 = new Chart(document.getElementById('chartSubjects'), {
-      type: 'bar', data: { labels: subs, datasets: [{ label: 'Avg %', data: subAvgs, backgroundColor: '#6366f1', borderRadius: 8 }] },
-      options: { responsive: true, plugins: { legend: { display: false } }, scales: { x: { ticks: { color: '#64748b' }, grid: { display: false } }, y: { min: 0, max: 100, ticks: { color: '#64748b' }, grid: { color: 'rgba(255,255,255,0.04)' } } } }
-    });
-    window._c3 = new Chart(document.getElementById('chartHistory'), {
-      type: 'line', data: { labels, datasets: [{ label: 'Score', data, borderColor: '#10b981', backgroundColor: 'rgba(16,185,129,0.1)', fill: true, tension: 0.3 }] },
-      options: { responsive: true, plugins: { legend: { labels: { color: '#94a3b8' } } }, scales: { x: { ticks: { color: '#64748b' }, grid: { color: 'rgba(255,255,255,0.04)' } }, y: { min: 0, max: 100, ticks: { color: '#64748b' }, grid: { color: 'rgba(255,255,255,0.04)' } } } }
-    });
-  } catch (e) { console.error(e); }
+  const labels = results.length ? results.map((result, index) => result.testName || ('Test ' + (index + 1))) : ['No data'];
+  const data = results.length ? results.map(r => r.percentage || 0) : [0];
+  const subjectLabels = Object.keys(subjects);
+  const subjectData = subjectLabels.length ? subjectLabels.map(label => Math.round(subjects[label].reduce((a, b) => a + b, 0) / subjects[label].length)) : [0];
+
+  safeChart('chartTrend', {
+    type: 'line',
+    data: { labels, datasets: [{ label: 'Score %', data, borderColor: '#818cf8', backgroundColor: 'rgba(99,102,241,0.1)', fill: true, tension: 0.4 }] },
+    options: { responsive: true, plugins: { legend: { labels: { color: '#94a3b8' } } }, scales: { x: { ticks: { color: '#64748b' }, grid: { color: 'rgba(255,255,255,0.04)' } }, y: { min: 0, max: 100, ticks: { color: '#64748b' }, grid: { color: 'rgba(255,255,255,0.04)' } } } }
+  });
+
+  safeChart('chartSubjects', {
+    type: 'bar',
+    data: { labels: subjectLabels.length ? subjectLabels : ['No data'], datasets: [{ label: 'Avg %', data: subjectData, backgroundColor: '#6366f1', borderRadius: 8 }] },
+    options: { responsive: true, plugins: { legend: { display: false } }, scales: { x: { ticks: { color: '#64748b' }, grid: { display: false } }, y: { min: 0, max: 100, ticks: { color: '#64748b' }, grid: { color: 'rgba(255,255,255,0.04)' } } } }
+  });
+
+  safeChart('chartHistory', {
+    type: 'line',
+    data: { labels, datasets: [{ label: 'Score', data, borderColor: '#10b981', backgroundColor: 'rgba(16,185,129,0.1)', fill: true, tension: 0.3 }] },
+    options: { responsive: true, plugins: { legend: { labels: { color: '#94a3b8' } } }, scales: { x: { ticks: { color: '#64748b' }, grid: { color: 'rgba(255,255,255,0.04)' } }, y: { min: 0, max: 100, ticks: { color: '#64748b' }, grid: { color: 'rgba(255,255,255,0.04)' } } } }
+  });
 }
 </script>
 </body>
 </html>
+
+
+
+

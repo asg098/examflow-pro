@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>ExamFlow Pro — Digital Exam & Performance Platform</title>
+  <title>ExamFlow - Digital Exam & Performance Platform</title>
   <meta name="description" content="A free, full-scale multi-school digital exam and performance management platform."/>
   <link rel="stylesheet" href="css/styles.css"/>
   <link rel="stylesheet" href="css/auth.css"/>
@@ -47,20 +47,32 @@
     .input-wrap .toggle-pw{position:absolute;right:14px;top:50%;transform:translateY(-50%);cursor:pointer;color:#475569;background:none;border:none;font-size:1rem}
     .school-field{display:none}
     .school-field.show{display:block}
+    .auth-container{background:var(--glass-bg);border:1px solid var(--glass-border);box-shadow:var(--shadow-lg)}
+    .auth-left{background:linear-gradient(135deg,rgba(79,70,229,0.92),rgba(8,145,178,0.9))}
+    .auth-right{background:var(--bg-card)}
+    .auth-right h3,.brand-name{color:var(--text-heading)}
+    .auth-right p.sub,.auth-hero p,.feature-list li,.auth-switch{color:var(--text-secondary)}
+    .role-btn{border-color:var(--glass-border);background:var(--glass-bg);color:var(--text-secondary)}
+    .role-btn:hover{color:var(--text-primary);background:var(--bg-card-hover)}
+    .btn-google{background:var(--glass-bg);border-color:var(--glass-border);color:var(--text-primary)}
+    .input-icon,.input-wrap .toggle-pw{color:var(--text-muted)}
+    [data-theme="light"] .brand-tagline{color:#4338ca}
+    [data-theme="light"] .auth-left{background:linear-gradient(135deg,#dbeafe,#eef2ff)}
+    [data-theme="light"] .auth-hero h2,[data-theme="light"] .brand-name{color:var(--text-heading)}
     @media(max-width:768px){.auth-container{grid-template-columns:1fr}.auth-left{display:none}.auth-right{padding:32px 28px}}
   </style>
 </head>
 <body>
-<div class="page-loader" id="pageLoader"><div class="loader"></div><p style="color:#94a3b8;font-size:0.875rem">Loading ExamFlow Pro...</p></div>
+<div class="page-loader" id="pageLoader"><div class="loader"></div><p style="color:#94a3b8;font-size:0.875rem">Loading ExamFlow...</p></div>
 <div class="toast-container" id="toastContainer"></div>
 
-<div class="auth-bg">
+<div class="auth-bg"><button class="topbar-btn" data-theme-toggle onclick="toggleTheme()" style="position:fixed;top:20px;right:20px;z-index:5">Theme</button>
   <div class="auth-container">
     <!-- Left Panel -->
     <div class="auth-left">
       <div class="brand-mark">
         <div class="brand-icon">🎓</div>
-        <div><div class="brand-name">ExamFlow Pro</div><div class="brand-tagline">Digital Exam Platform</div></div>
+        <div><div class="brand-name">ExamFlow</div><div class="brand-tagline">Digital Exam Platform</div><div class="brand-initiative">An initiative by Judiq AI</div></div>
       </div>
       <div class="auth-hero">
         <h2>Transform How Schools Conduct Exams</h2>
@@ -85,7 +97,7 @@
       <!-- Login Form -->
       <div id="loginPanel">
         <h3>Welcome Back</h3>
-        <p class="sub">Sign in to your ExamFlow account</p>
+        <p class="sub">Sign in to your ExamFlow account</p><p class="initiative-note" style="margin-top:-12px;margin-bottom:20px">An initiative by Judiq AI</p>
         <div class="role-select" id="roleSelectLogin">
           <button class="role-btn active" data-role="admin" onclick="selectRole('admin')"><span class="role-icon">👨‍💼</span>Admin</button>
           <button class="role-btn" data-role="school" onclick="selectRole('school')"><span class="role-icon">🏫</span>School</button>
@@ -106,7 +118,7 @@
       <!-- Signup Form -->
       <div id="signupPanel" class="hidden">
         <h3>Create Account</h3>
-        <p class="sub">Join ExamFlow — select your role to get started</p>
+        <p class="sub">Join ExamFlow - select your role to get started</p><p class="initiative-note" style="margin-top:-12px;margin-bottom:20px">Built as a free initiative by Judiq AI</p>
         <form class="auth-form" id="signupForm" onsubmit="handleSignup(event)">
           <div class="form-group">
             <label class="form-label">Your Role</label>
@@ -140,9 +152,10 @@
             </div>
             <div id="classDivField" style="display:none;margin-top:14px">
               <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-                <div class="form-group"><label class="form-label">Grade/Class</label><select class="form-control" id="signupClassSelect"><option value="">— Select Class —</option></select></div>
-                <div class="form-group"><label class="form-label">Division</label><input class="form-control" id="signupDiv" placeholder="e.g. A"/></div>
+                <div class="form-group"><label class="form-label">Grade/Class</label><select class="form-control" id="signupClassSelect" onchange="onClassChange()"><option value="">— Select Class —</option></select></div>
+                <div class="form-group"><label class="form-label">Division</label><select class="form-control" id="signupDivSelect"><option value="">— Select Division —</option></select></div>
               </div>
+              <p id="classDivHint" style="margin-top:10px;font-size:0.8rem;color:#64748b"></p>
             </div>
           </div>
 
@@ -172,11 +185,11 @@
     </div>
   </div>
 </div>
-
+<script src="js/shared.js"></script>
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, sendPasswordResetEmail, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-import { getFirestore, doc, setDoc, getDoc, getDocs, collection, query, where, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { getFirestore, doc, setDoc, getDoc, getDocs, collection, query, where, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyCbSZRvUsFuepNW8W2D5x-5EwHEE_O2UdE",
@@ -193,6 +206,7 @@ const db = getFirestore(app);
 const googleProvider = new GoogleAuthProvider();
 
 let selectedRole = 'admin';
+let schoolClassMap = {};
 
 // ── Load schools list for signup ──
 async function loadSchoolsList() {
@@ -221,6 +235,7 @@ window.onRoleChange = function () {
   schoolNameField.classList.remove('show');
   schoolSelectField.classList.remove('show');
   parentField.classList.remove('show');
+  resetSchoolSelectionState();
 
   if (role === 'school') {
     schoolNameField.classList.add('show');
@@ -235,17 +250,102 @@ window.onRoleChange = function () {
 window.onSchoolSelect = async () => {
   const schoolId = document.getElementById('signupSchoolSelect').value;
   const classDivField = document.getElementById('classDivField');
+  resetClassDivisionFields();
   if (!schoolId) { classDivField.style.display = 'none'; return; }
   classDivField.style.display = 'block';
-  
-  // Load classes for this school
-  try {
-    const snap = await getDocs(query(collection(db, 'classes'), where('schoolId', '==', schoolId)));
-    const sel = document.getElementById('signupClassSelect');
-    sel.innerHTML = '<option value="">— Select Class —</option>';
-    snap.forEach(d => { sel.innerHTML += '<option value="' + d.data().name + '">' + d.data().name + '</option>'; });
-  } catch (e) { console.error(e); }
+  await loadSchoolClasses(schoolId);
 };
+
+window.onClassChange = () => {
+  const className = document.getElementById('signupClassSelect').value;
+  const divSel = document.getElementById('signupDivSelect');
+  const hint = document.getElementById('classDivHint');
+  divSel.innerHTML = '<option value="">— Select Division —</option>';
+  divSel.disabled = !className;
+
+  if (!className) {
+    hint.textContent = 'Select a class to see its divisions.';
+    return;
+  }
+
+  const divisions = schoolClassMap[className] || [];
+  if (!divisions.length) {
+    divSel.innerHTML = '<option value="">No divisions added yet</option>';
+    hint.textContent = 'This class has no divisions configured yet. Ask your school admin to add them.';
+    return;
+  }
+
+  divSel.innerHTML += divisions.map(div => '<option value="' + div + '">' + div + '</option>').join('');
+  hint.textContent = 'Choose the division assigned by your school.';
+};
+
+function resetSchoolSelectionState() {
+  const schoolSel = document.getElementById('signupSchoolSelect');
+  if (schoolSel) schoolSel.value = '';
+  document.getElementById('classDivField').style.display = 'none';
+  resetClassDivisionFields();
+}
+
+function resetClassDivisionFields() {
+  schoolClassMap = {};
+  const classSel = document.getElementById('signupClassSelect');
+  const divSel = document.getElementById('signupDivSelect');
+  const hint = document.getElementById('classDivHint');
+  classSel.innerHTML = '<option value="">— Select Class —</option>';
+  divSel.innerHTML = '<option value="">— Select Division —</option>';
+  divSel.disabled = true;
+  hint.textContent = 'Select your school to load classes and divisions.';
+}
+
+async function loadSchoolClasses(schoolId) {
+  const classSel = document.getElementById('signupClassSelect');
+  const divSel = document.getElementById('signupDivSelect');
+  const hint = document.getElementById('classDivHint');
+
+  try {
+    classSel.innerHTML = '<option value="">— Select Class —</option>';
+    divSel.innerHTML = '<option value="">— Select Division —</option>';
+    classSel.disabled = true;
+    divSel.disabled = true;
+    hint.textContent = 'Loading classes and divisions...';
+
+    let snap;
+    try {
+      snap = await getDocs(query(collection(db, 'classes'), where('schoolId', '==', schoolId), orderBy('name')));
+    } catch (queryErr) {
+      snap = await getDocs(query(collection(db, 'classes'), where('schoolId', '==', schoolId)));
+    }
+
+    if (snap.empty) {
+      hint.textContent = 'No classes are configured for this school yet.';
+      return;
+    }
+
+    const classEntries = [];
+    snap.forEach(d => {
+      const classData = d.data();
+      const className = (classData.name || '').trim();
+      if (!className) return;
+      const divisions = Array.isArray(classData.divisions)
+        ? classData.divisions.map(div => String(div).trim().toUpperCase()).filter(Boolean)
+        : [];
+      schoolClassMap[className] = divisions;
+      classEntries.push({ className, divisions });
+    });
+
+    classEntries.sort((a, b) => a.className.localeCompare(b.className, undefined, { numeric: true, sensitivity: 'base' }));
+    classEntries.forEach(entry => {
+      classSel.innerHTML += '<option value="' + entry.className + '">' + entry.className + '</option>';
+    });
+
+    classSel.disabled = false;
+    hint.textContent = 'Select your class to load the available divisions.';
+  } catch (e) {
+    console.error(e);
+    hint.textContent = 'Could not load classes right now. Check Firestore rules and try again.';
+    showToast('Could not load classes for this school.', 'error');
+  }
+}
 
 // ── Auth State ──
 onAuthStateChanged(auth, async (user) => {
@@ -308,9 +408,10 @@ window.handleSignup = async (e) => {
     schoolId = sel.value;
     schoolName = sel.options[sel.selectedIndex]?.dataset?.name || '';
     className = document.getElementById('signupClassSelect').value;
-    division = document.getElementById('signupDiv').value.trim().toUpperCase();
+    division = document.getElementById('signupDivSelect').value.trim().toUpperCase();
     if (!schoolId) { showToast('Please select your school', 'warning'); return; }
     if (!className) { showToast('Please select your class', 'warning'); return; }
+    if (!division) { showToast('Please select your division', 'warning'); return; }
   }
 
   btn.disabled = true;
@@ -440,3 +541,11 @@ window.showToast = (msg, type = 'info', duration = 3500) => {
 </script>
 </body>
 </html>
+
+
+
+
+
+
+
+

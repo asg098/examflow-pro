@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-  <title>Admin Dashboard — ExamFlow Pro</title>
+  <title>Admin Dashboard - ExamFlow</title>
   <link rel="stylesheet" href="css/styles.css"/>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 </head>
@@ -12,7 +12,7 @@
 
 <div class="app-layout">
   <aside class="sidebar">
-    <div class="sidebar-logo"><div class="logo-icon">🎓</div><div><div class="logo-text">ExamFlow Pro</div><div class="logo-sub">Admin Panel</div></div></div>
+    <div class="sidebar-logo"><div class="logo-icon">AD</div><div><div class="logo-text">ExamFlow</div><div class="logo-sub">Admin Panel</div><div class="brand-initiative">Initiative by Judiq AI</div></div></div>
     <nav class="sidebar-nav">
       <div class="nav-section-title">Main</div>
       <button class="nav-item active" id="navDash" onclick="showSection('secDash','navDash')"><span class="nav-icon">📊</span>Dashboard</button>
@@ -28,7 +28,7 @@
   </aside>
 
   <main class="main-content">
-    <header class="topbar"><span class="topbar-title">Admin Dashboard</span><div class="topbar-actions"><button class="topbar-btn">🔔</button></div></header>
+    <header class="topbar"><div class="topbar-meta"><span class="topbar-title">Admin Dashboard</span><span class="topbar-subtitle">Free school exam initiative by Judiq AI</span></div><div class="topbar-actions"><button class="topbar-btn" data-theme-toggle onclick="toggleTheme()">Theme</button></div></header>
     <div class="page-content">
       <div class="section" id="secDash">
         <div class="grid g-4" style="margin-bottom:28px">
@@ -57,8 +57,8 @@
       <div class="section hidden" id="secSettings">
         <h2 style="font-size:1.3rem;margin-bottom:20px">Platform Settings</h2>
         <div class="card"><div class="card-body"><form class="auth-form" style="max-width:500px" onsubmit="event.preventDefault();showToast('Settings saved!','success')">
-          <div class="form-group"><label class="form-label">Platform Name</label><input class="form-control" value="ExamFlow Pro"/></div>
-          <div class="form-group"><label class="form-label">Support Email</label><input class="form-control" value="support@examflow.pro"/></div>
+          <div class="form-group"><label class="form-label">Platform Name</label><input class="form-control" value="ExamFlow"/></div>
+          <div class="form-group"><label class="form-label">Support Email</label><input class="form-control" value="support@judiq.ai"/></div>
           <button class="btn btn-primary">Save Settings</button>
         </form></div></div>
       </div>
@@ -109,7 +109,17 @@ async function loadDashboard() {
 
     // Schools chart
     const schoolNames = []; const schoolStudents = [];
-    schools.forEach(d => { const s = d.data(); schoolNames.push(s.name || 'School'); schoolStudents.push(s.studentCount || 0); });
+    const studentsBySchool = {};
+    users.forEach(d => {
+      const u = d.data();
+      if (u.role !== 'student' || !u.schoolId) return;
+      studentsBySchool[u.schoolId] = (studentsBySchool[u.schoolId] || 0) + 1;
+    });
+    schools.forEach(d => {
+      const s = d.data();
+      schoolNames.push(s.name || 'School');
+      schoolStudents.push(studentsBySchool[d.id] || 0);
+    });
     safeChart('chartSchools', {
       type: 'bar',
       data: { labels: schoolNames.length ? schoolNames : ['No schools'], datasets: [{ label: 'Students', data: schoolStudents.length ? schoolStudents : [0], backgroundColor: '#6366f1', borderRadius: 8 }] },
@@ -153,3 +163,8 @@ window.deleteUser = async (id) => { if (!confirm('Delete?')) return; try { await
 </script>
 </body>
 </html>
+
+
+
+
+

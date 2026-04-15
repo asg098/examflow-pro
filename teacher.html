@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-  <title>Teacher Dashboard — ExamFlow Pro</title>
+  <title>Teacher Dashboard - ExamFlow</title>
   <link rel="stylesheet" href="css/styles.css"/>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 </head>
@@ -12,7 +12,7 @@
 
 <div class="app-layout">
   <aside class="sidebar">
-    <div class="sidebar-logo"><div class="logo-icon">🧑‍🏫</div><div><div class="logo-text" id="sidebarSchoolName">ExamFlow</div><div class="logo-sub">Teacher Panel</div></div></div>
+    <div class="sidebar-logo"><div class="logo-icon">TR</div><div><div class="logo-text" id="sidebarSchoolName">ExamFlow</div><div class="logo-sub">Teacher Panel</div><div class="brand-initiative">Initiative by Judiq AI</div></div></div>
     <nav class="sidebar-nav">
       <div class="nav-section-title">Main</div>
       <button class="nav-item active" id="navDash" onclick="showSection('secDash','navDash')"><span class="nav-icon">📊</span>Dashboard</button>
@@ -32,7 +32,7 @@
   </aside>
 
   <main class="main-content">
-    <header class="topbar"><span class="topbar-title" id="topbarTitle">Teacher Dashboard</span><div class="topbar-actions"><button class="topbar-btn">🔔</button></div></header>
+    <header class="topbar"><div class="topbar-meta"><span class="topbar-title" id="topbarTitle">Teacher Dashboard</span><span class="topbar-subtitle">An initiative by Judiq AI</span></div><div class="topbar-actions"><button class="topbar-btn" data-theme-toggle onclick="toggleTheme()">Theme</button></div></header>
     <div class="page-content">
 
       <!-- Dashboard -->
@@ -56,7 +56,7 @@
 
       <!-- Students -->
       <div class="section hidden" id="secStudents">
-        <div class="flex-between" style="margin-bottom:20px"><h2 style="font-size:1.3rem">My Students</h2></div>
+        <div class="flex-between" style="margin-bottom:20px"><h2 style="font-size:1.3rem">My Students</h2><button class="btn btn-primary" onclick="prepareStudentModal()">+ Add Student</button></div>
         <div class="card"><div class="card-body"><div class="table-wrap"><table class="table"><thead><tr><th>Name</th><th>Email</th><th>Class</th><th>Division</th><th>Tests Taken</th></tr></thead><tbody id="studentsTable"></tbody></table></div></div></div>
       </div>
 
@@ -98,9 +98,10 @@
           </div>
         </div>
         <div id="questionsContainer"></div>
-        <div style="margin-top:20px;display:flex;gap:12px">
+        <div style="margin-top:20px;display:flex;gap:12px;flex-wrap:wrap">
           <button class="btn btn-primary btn-lg" onclick="publishTest()">🚀 Publish Test</button>
           <button class="btn btn-secondary btn-lg" onclick="saveDraft()">💾 Save Draft</button>
+          <button class="btn btn-sm btn-info" style="margin-left:auto" onclick="openModal('importBankModal')">📥 Import from Bank</button>
         </div>
       </div>
 
@@ -138,17 +139,30 @@
 <!-- Add Bank Question Modal -->
 <div class="modal-overlay" id="addBankQModal"><div class="modal"><div class="modal-header"><h3 class="modal-title">Add to Question Bank</h3><button class="modal-close" onclick="closeModal('addBankQModal')">✕</button></div><div class="modal-body"><div class="auth-form" id="addBankForm"><div class="form-group"><label class="form-label">Question</label><textarea class="form-control" id="bqQ"></textarea></div><div class="form-group"><label class="form-label">Type</label><select class="form-control" id="bqType"><option value="mcq">MCQ</option><option value="multi">Multi-select</option><option value="true-false">True/False</option><option value="numerical">Numerical</option><option value="short">Short Answer</option><option value="descriptive">Descriptive</option></select></div><div class="form-group"><label class="form-label">Subject</label><input class="form-control" id="bqSubject"/></div><div class="form-group"><label class="form-label">Difficulty</label><select class="form-control" id="bqDiff"><option value="easy">Easy</option><option value="medium" selected>Medium</option><option value="hard">Hard</option></select></div><div class="form-group"><label class="form-label">Correct Answer</label><input class="form-control" id="bqAns"/></div></div></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal('addBankQModal')">Cancel</button><button class="btn btn-primary" onclick="addToBank()">Save</button></div></div></div>
 
+<div class="modal-overlay" id="addStudentModal"><div class="modal"><div class="modal-header"><h3 class="modal-title">Add Student</h3><button class="modal-close" onclick="closeModal('addStudentModal')">✕</button></div><div class="modal-body"><form class="auth-form" id="addStudentForm"><div class="form-group"><label class="form-label">Student Name</label><input class="form-control" id="studentName" required/></div><div class="form-group"><label class="form-label">Student Email</label><input type="email" class="form-control" id="studentEmail" required/></div><div class="form-group"><label class="form-label">Temporary Password</label><input class="form-control" id="studentPassword" required minlength="6" placeholder="Minimum 6 characters"/></div><div class="grid g-2" style="gap:12px"><div class="form-group"><label class="form-label">Class</label><input class="form-control" id="studentClass" readonly/></div><div class="form-group"><label class="form-label">Division</label><input class="form-control" id="studentDivision" readonly/></div></div><p style="font-size:0.82rem;color:#64748b">This creates a student login in your assigned class and division.</p></form></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal('addStudentModal')">Cancel</button><button class="btn btn-primary" onclick="createStudent()">Create Student</button></div></div></div>
+
+<!-- Import from Bank Modal -->
+<div class="modal-overlay" id="importBankModal"><div class="modal"><div class="modal-header"><h3 class="modal-title">Import Questions</h3><button class="modal-close" onclick="closeModal('importBankModal')">✕</button></div><div class="modal-body"><div id="importBankList"><p>Loading bank...</p></div></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal('importBankModal')">Close</button></div></div></div>
+
 <script src="js/shared.js"></script>
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getAuth, onAuthStateChanged, signOut as fbSignOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-import { getFirestore, collection, getDocs, doc, getDoc, setDoc, addDoc, deleteDoc, query, where, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { getAuth, onAuthStateChanged, signOut as fbSignOut, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+import { getFirestore, collection, getDocs, doc, getDoc, setDoc, addDoc, deleteDoc, query, where, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-const app = initializeApp({ apiKey:"AIzaSyCbSZRvUsFuepNW8W2D5x-5EwHEE_O2UdE", authDomain:"aixynztestseries-fc5da.firebaseapp.com", projectId:"aixynztestseries-fc5da", storageBucket:"aixynztestseries-fc5da.firebasestorage.app", messagingSenderId:"354795848617", appId:"1:354795848617:web:ab50b9095256b6febbfab8" });
-const auth = getAuth(app), db = getFirestore(app);
-let uid = null, teacherName = '', schoolId = '', schoolName = '', myClass = '', myDiv = '';
+const firebaseConfig = { apiKey:"AIzaSyCbSZRvUsFuepNW8W2D5x-5EwHEE_O2UdE", authDomain:"aixynztestseries-fc5da.firebaseapp.com", projectId:"aixynztestseries-fc5da", storageBucket:"aixynztestseries-fc5da.firebasestorage.app", messagingSenderId:"354795848617", appId:"1:354795848617:web:ab50b9095256b6febbfab8" };
+const app = initializeApp(firebaseConfig);
+const provisionApp = initializeApp(firebaseConfig, 'teacher-provisioning');
+const auth = getAuth(app);
+const db = getFirestore(app);
+const provisionAuth = getAuth(provisionApp);
 
-// Question builder state
+let uid = null;
+let teacherName = '';
+let schoolId = '';
+let schoolName = '';
+let myClass = '';
+let myDiv = '';
 let questions = [];
 let qCounter = 0;
 
@@ -156,163 +170,267 @@ onAuthStateChanged(auth, async (u) => {
   document.getElementById('pageLoader').style.opacity = '0';
   setTimeout(() => document.getElementById('pageLoader').style.display = 'none', 500);
   if (!u) { window.location.href = 'index.html'; return; }
-  uid = u.uid;
-  const ud = await getDoc(doc(db, 'users', u.uid));
-  if (!ud.exists() || ud.data().role !== 'teacher') { window.location.href = 'index.html'; return; }
-  const userData = ud.data();
-  teacherName = userData.displayName || 'Teacher';
-  schoolId = userData.schoolId || '';
-  schoolName = userData.schoolName || '';
-  myClass = userData.className || '';
-  myDiv = userData.division || '';
-  document.getElementById('userName').textContent = teacherName;
-  document.getElementById('userAvatar').textContent = teacherName[0].toUpperCase();
-  document.getElementById('sidebarSchoolName').textContent = schoolName || 'ExamFlow';
-  document.getElementById('userSchoolName').textContent = schoolName || 'Teacher';
-  document.getElementById('topbarTitle').textContent = schoolName ? schoolName + ' — Teacher' : 'Teacher Dashboard';
-  loadAll();
+
+  try {
+    uid = u.uid;
+    const userSnap = await getDoc(doc(db, 'users', u.uid));
+    if (!userSnap.exists() || userSnap.data().role !== 'teacher') { window.location.href = 'index.html'; return; }
+
+    const userData = userSnap.data();
+    teacherName = userData.displayName || 'Teacher';
+    schoolId = userData.schoolId || '';
+    schoolName = userData.schoolName || '';
+    myClass = userData.className || '';
+    myDiv = (userData.division || '').toUpperCase();
+
+    if (schoolId && (!myClass || !myDiv)) {
+      const assignmentId = schoolId + '_' + (userData.email || '').replace(/[@.]/g, '_');
+      const assignmentSnap = await getDoc(doc(db, 'teachers', assignmentId));
+      if (assignmentSnap.exists()) {
+        const assignment = assignmentSnap.data();
+        myClass = myClass || assignment.className || '';
+        myDiv = myDiv || (assignment.division || '').toUpperCase();
+        schoolName = schoolName || assignment.schoolName || '';
+      }
+    }
+
+    document.getElementById('userName').textContent = teacherName;
+    document.getElementById('userAvatar').textContent = teacherName[0].toUpperCase();
+    document.getElementById('sidebarSchoolName').textContent = schoolName || 'ExamFlow';
+    document.getElementById('userSchoolName').textContent = schoolName || 'Teacher';
+    document.getElementById('topbarTitle').textContent = schoolName ? schoolName + ' - Teacher' : 'Teacher Dashboard';
+
+    await loadAll();
+  } catch (e) {
+    console.error('teacher auth:', e);
+    showToast('Could not load teacher dashboard.', 'error');
+  }
 });
+
 window.signOut = () => fbSignOut(auth).then(() => window.location.href = 'index.html');
 
 async function loadAll() {
-  try {
-    await loadClasses();
-    await loadStudents();
-    await loadTests();
-    await loadBank();
-    await loadResults();
-    await loadDashStats();
-  } catch (e) { console.error('loadAll:', e); }
+  await Promise.all([loadClasses(), loadStudents(), loadTests(), loadBank(), loadResults(), loadDashStats()]);
   renderQuestions();
 }
 
-// ── Load Classes ──
 async function loadClasses() {
+  const select = document.getElementById('testClass');
+  select.innerHTML = '';
+  if (!schoolId) {
+    select.innerHTML = '<option value="">No classes found</option>';
+    return;
+  }
+
+  let snap;
   try {
-    let snap;
-    if (schoolId) {
-      snap = await getDocs(query(collection(db, 'classes'), where('schoolId', '==', schoolId)));
-    } else {
-      snap = { empty: true, forEach: () => {} };
-    }
-    const selTest = document.getElementById('testClass');
-    selTest.innerHTML = '';
-    if (snap.empty) { selTest.innerHTML = '<option value="">No classes found</option>'; return; }
-    snap.forEach(d => { selTest.innerHTML += '<option value="' + d.data().name + '">' + d.data().name + '</option>'; });
-  } catch (e) { console.error('loadClasses:', e); }
+    snap = await getDocs(query(collection(db, 'classes'), where('schoolId', '==', schoolId), orderBy('name')));
+  } catch (err) {
+    snap = await getDocs(query(collection(db, 'classes'), where('schoolId', '==', schoolId)));
+  }
+  if (snap.empty) {
+    select.innerHTML = '<option value="">No classes found</option>';
+    return;
+  }
+
+  snap.forEach(d => {
+    const className = d.data().name || '';
+    select.innerHTML += '<option value="' + className + '"' + (className === myClass ? ' selected' : '') + '>' + className + '</option>';
+  });
+  if (!document.getElementById('testDiv').value && myDiv) document.getElementById('testDiv').value = myDiv;
 }
 
-// ── Dashboard Stats ──
 async function loadDashStats() {
-  try {
-    const [stu, tst, res] = await Promise.all([
-      getDocs(query(collection(db, 'users'), where('schoolId', '==', schoolId), where('role', '==', 'student'), where('className', '==', myClass), where('division', '==', myDiv))),
-      getDocs(query(collection(db, 'tests'), where('teacherId', '==', uid))),
-      getDocs(query(collection(db, 'results'), where('teacherId', '==', uid)))
-    ]);
-    document.getElementById('sMyStudents').textContent = stu.size;
-    document.getElementById('sMyTests').textContent = tst.size;
+  const studentConstraints = [where('schoolId', '==', schoolId), where('role', '==', 'student')];
+  if (myClass) studentConstraints.push(where('className', '==', myClass));
+  if (myDiv) studentConstraints.push(where('division', '==', myDiv));
 
-    let total = 0, sum = 0, passed = 0, highest = 0, lowest = 100;
-    const testScores = {};
-    const scoreBuckets = [0, 0, 0, 0, 0];
-    const subjectAccuracy = {};
-    const studentScores = {};
+  const [studentSnap, testSnap, resultSnap] = await Promise.all([
+    getDocs(query(collection(db, 'users'), ...studentConstraints)),
+    getDocs(query(collection(db, 'tests'), where('teacherId', '==', uid))),
+    getDocs(query(collection(db, 'results'), where('teacherId', '==', uid)))
+  ]);
 
-    res.forEach(d => {
-      const r = d.data();
-      const pct = r.percentage || 0;
-      total++; sum += pct;
-      if (r.passed) passed++;
-      if (pct > highest) highest = pct;
-      if (pct < lowest) lowest = pct;
-      if (pct < 20) scoreBuckets[0]++;
-      else if (pct < 40) scoreBuckets[1]++;
-      else if (pct < 60) scoreBuckets[2]++;
-      else if (pct < 80) scoreBuckets[3]++;
-      else scoreBuckets[4]++;
-      const tName = r.testName || 'Test';
-      if (!testScores[tName]) testScores[tName] = [];
-      testScores[tName].push(pct);
-      const sub = r.subject || 'General';
-      if (!subjectAccuracy[sub]) subjectAccuracy[sub] = [];
-      subjectAccuracy[sub].push(pct);
-      const sid = r.studentId || r.studentEmail || 'unknown';
-      if (!studentScores[sid]) studentScores[sid] = { name: r.studentName || 'Student', scores: [] };
-      studentScores[sid].scores.push(pct);
-    });
+  document.getElementById('sMyStudents').textContent = studentSnap.size;
+  document.getElementById('sMyTests').textContent = testSnap.size;
 
-    const avg = total ? Math.round(sum / total) : 0;
-    const passRate = total ? Math.round((passed / total) * 100) : 0;
-    document.getElementById('sAvg').textContent = total ? avg + '%' : '—';
-    document.getElementById('sPass').textContent = total ? passRate + '%' : '—';
-    document.getElementById('anaAvg').textContent = total ? avg + '%' : '—';
-    document.getElementById('anaRing').style.setProperty('--pct', avg + '%');
-    document.getElementById('anaHigh').textContent = total ? highest + '%' : '—';
-    document.getElementById('anaLow').textContent = total ? lowest + '%' : '—';
+  let total = 0;
+  let sum = 0;
+  let passed = 0;
+  let highest = 0;
+  let lowest = 100;
+  const testScores = {};
+  const scoreBuckets = [0, 0, 0, 0, 0];
+  const subjectAccuracy = {};
+  const studentScores = {};
 
-    // Weak students
-    const weakStudents = [];
-    Object.values(studentScores).forEach(s => {
-      const sAvg = Math.round(s.scores.reduce((a, b) => a + b, 0) / s.scores.length);
-      if (sAvg < 40) weakStudents.push({ name: s.name, avg: sAvg });
-    });
-    const weakEl = document.getElementById('weakList');
-    if (weakStudents.length) {
-      weakEl.innerHTML = weakStudents.map(s =>
-        '<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:rgba(239,68,68,0.06);border:1px solid rgba(239,68,68,0.15);border-radius:10px;margin-bottom:6px"><span>' + (s.name || 'Student') + '</span><span class="badge badge-danger">Avg: ' + s.avg + '%</span></div>'
-      ).join('');
-    } else {
-      weakEl.innerHTML = '<p style="color:#64748b;font-size:0.875rem">' + (total ? '✅ No weak students!' : 'Complete tests to see analysis.') + '</p>';
-    }
+  resultSnap.forEach(d => {
+    const r = d.data();
+    const pct = r.percentage || 0;
+    total++;
+    sum += pct;
+    if (r.passed) passed++;
+    if (pct > highest) highest = pct;
+    if (pct < lowest) lowest = pct;
+    if (pct < 20) scoreBuckets[0]++;
+    else if (pct < 40) scoreBuckets[1]++;
+    else if (pct < 60) scoreBuckets[2]++;
+    else if (pct < 80) scoreBuckets[3]++;
+    else scoreBuckets[4]++;
 
-    // Charts
-    const labels = Object.keys(testScores).slice(-8);
-    const data = labels.map(l => Math.round(testScores[l].reduce((a, b) => a + b, 0) / testScores[l].length));
-    safeChart('chartRecent', {
-      type: 'line',
-      data: { labels: labels.length ? labels : ['No data'], datasets: [{ label: 'Avg %', data: data.length ? data : [0], borderColor: '#818cf8', backgroundColor: 'rgba(99,102,241,0.1)', fill: true, tension: 0.4 }] },
-      options: { responsive: true, plugins: { legend: { labels: { color: '#94a3b8' } } }, scales: { x: { ticks: { color: '#64748b' }, grid: { color: 'rgba(255,255,255,0.04)' } }, y: { min: 0, max: 100, ticks: { color: '#64748b' }, grid: { color: 'rgba(255,255,255,0.04)' } } } }
-    });
+    const testName = r.testName || 'Test';
+    if (!testScores[testName]) testScores[testName] = [];
+    testScores[testName].push(pct);
 
-    const subLabels = Object.keys(subjectAccuracy);
-    const subData = subLabels.map(s => Math.round(subjectAccuracy[s].reduce((a, b) => a + b, 0) / subjectAccuracy[s].length));
-    safeChart('chartTopics', {
-      type: 'radar',
-      data: { labels: subLabels.length ? subLabels : ['No data'], datasets: [{ label: 'Accuracy %', data: subData.length ? subData : [0], borderColor: '#818cf8', backgroundColor: 'rgba(99,102,241,0.2)', pointBackgroundColor: '#818cf8' }] },
-      options: { responsive: true, scales: { r: { min: 0, max: 100, angleLines: { color: 'rgba(255,255,255,0.06)' }, grid: { color: 'rgba(255,255,255,0.06)' }, ticks: { display: false }, pointLabels: { color: '#94a3b8' } } }, plugins: { legend: { labels: { color: '#94a3b8' } } } }
-    });
+    const subject = r.subject || 'General';
+    if (!subjectAccuracy[subject]) subjectAccuracy[subject] = [];
+    subjectAccuracy[subject].push(pct);
 
-    safeChart('chartDist', {
-      type: 'bar',
-      data: { labels: ['0-20%', '20-40%', '40-60%', '60-80%', '80-100%'], datasets: [{ label: 'Students', data: scoreBuckets, backgroundColor: ['#ef4444', '#f59e0b', '#fbbf24', '#10b981', '#6366f1'], borderRadius: 8 }] },
-      options: { responsive: true, plugins: { legend: { display: false } }, scales: { x: { ticks: { color: '#64748b' }, grid: { display: false } }, y: { ticks: { color: '#64748b', stepSize: 1 }, grid: { color: 'rgba(255,255,255,0.04)' } } } }
-    });
-  } catch (e) { console.error('loadDashStats:', e); }
+    const studentId = r.studentId || r.studentEmail || 'unknown';
+    if (!studentScores[studentId]) studentScores[studentId] = { name: r.studentName || 'Student', scores: [] };
+    studentScores[studentId].scores.push(pct);
+  });
+
+  const avg = total ? Math.round(sum / total) : 0;
+  const passRate = total ? Math.round((passed / total) * 100) : 0;
+  document.getElementById('sAvg').textContent = total ? avg + '%' : '-';
+  document.getElementById('sPass').textContent = total ? passRate + '%' : '-';
+  document.getElementById('anaAvg').textContent = total ? avg + '%' : '-';
+  document.getElementById('anaRing').style.setProperty('--pct', avg + '%');
+  document.getElementById('anaHigh').textContent = total ? highest + '%' : '-';
+  document.getElementById('anaLow').textContent = total ? lowest + '%' : '-';
+
+  const weakStudents = Object.values(studentScores)
+    .map(student => ({ name: student.name, avg: Math.round(student.scores.reduce((a, b) => a + b, 0) / student.scores.length) }))
+    .filter(student => student.avg < 40);
+
+  const weakEl = document.getElementById('weakList');
+  weakEl.innerHTML = weakStudents.length
+    ? weakStudents.map(student => '<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:rgba(239,68,68,0.06);border:1px solid rgba(239,68,68,0.15);border-radius:10px;margin-bottom:6px"><span>' + student.name + '</span><span class="badge badge-danger">Avg: ' + student.avg + '%</span></div>').join('')
+    : '<p style="color:#64748b;font-size:0.875rem">' + (total ? 'No weak students right now.' : 'Complete tests to see analysis.') + '</p>';
+
+  const recentLabels = Object.keys(testScores).slice(-8);
+  const recentData = recentLabels.map(label => Math.round(testScores[label].reduce((a, b) => a + b, 0) / testScores[label].length));
+  safeChart('chartRecent', {
+    type: 'line',
+    data: { labels: recentLabels.length ? recentLabels : ['No data'], datasets: [{ label: 'Avg %', data: recentData.length ? recentData : [0], borderColor: '#818cf8', backgroundColor: 'rgba(99,102,241,0.1)', fill: true, tension: 0.4 }] },
+    options: { responsive: true, plugins: { legend: { labels: { color: '#94a3b8' } } }, scales: { x: { ticks: { color: '#64748b' }, grid: { color: 'rgba(255,255,255,0.04)' } }, y: { min: 0, max: 100, ticks: { color: '#64748b' }, grid: { color: 'rgba(255,255,255,0.04)' } } } }
+  });
+
+  const subLabels = Object.keys(subjectAccuracy);
+  const subData = subLabels.map(label => Math.round(subjectAccuracy[label].reduce((a, b) => a + b, 0) / subjectAccuracy[label].length));
+  safeChart('chartTopics', {
+    type: 'radar',
+    data: { labels: subLabels.length ? subLabels : ['No data'], datasets: [{ label: 'Accuracy %', data: subData.length ? subData : [0], borderColor: '#818cf8', backgroundColor: 'rgba(99,102,241,0.2)', pointBackgroundColor: '#818cf8' }] },
+    options: { responsive: true, scales: { r: { min: 0, max: 100, angleLines: { color: 'rgba(255,255,255,0.06)' }, grid: { color: 'rgba(255,255,255,0.06)' }, ticks: { display: false }, pointLabels: { color: '#94a3b8' } } }, plugins: { legend: { labels: { color: '#94a3b8' } } } }
+  });
+
+  safeChart('chartDist', {
+    type: 'bar',
+    data: { labels: ['0-20%', '20-40%', '40-60%', '60-80%', '80-100%'], datasets: [{ label: 'Students', data: scoreBuckets, backgroundColor: ['#ef4444', '#f59e0b', '#fbbf24', '#10b981', '#6366f1'], borderRadius: 8 }] },
+    options: { responsive: true, plugins: { legend: { display: false } }, scales: { x: { ticks: { color: '#64748b' }, grid: { display: false } }, y: { ticks: { color: '#64748b', stepSize: 1 }, grid: { color: 'rgba(255,255,255,0.04)' } } } }
+  });
 }
 
-// ── Students ──
 async function loadStudents() {
+  const constraints = [where('schoolId', '==', schoolId), where('role', '==', 'student')];
+  if (myClass) constraints.push(where('className', '==', myClass));
+  if (myDiv) constraints.push(where('division', '==', myDiv));
+
+  const [studentSnap, resultSnap] = await Promise.all([
+    getDocs(query(collection(db, 'users'), ...constraints)),
+    getDocs(query(collection(db, 'results'), where('teacherId', '==', uid)))
+  ]);
+
+  const tbody = document.getElementById('studentsTable');
+  if (studentSnap.empty) {
+    tbody.innerHTML = '<tr><td colspan="5"><div class="empty-state"><div class="empty-title">No students found</div><div class="empty-desc">Use Add Student to create student accounts for this class</div></div></td></tr>';
+    return;
+  }
+
+  const testsByStudent = {};
+  resultSnap.forEach(d => {
+    const r = d.data();
+    if (!r.studentId) return;
+    testsByStudent[r.studentId] = (testsByStudent[r.studentId] || 0) + 1;
+  });
+
+  tbody.innerHTML = '';
+  studentSnap.forEach(d => {
+    const s = d.data();
+    tbody.innerHTML += '<tr><td><strong>' + (s.displayName || '-') + '</strong></td><td>' + (s.email || '-') + '</td><td>' + (s.className || '-') + '</td><td><span class="badge badge-primary">' + (s.division || '-') + '</span></td><td>' + (testsByStudent[d.id] || 0) + '</td></tr>';
+  });
+}
+
+window.prepareStudentModal = () => {
+  if (!myClass || !myDiv) {
+    showToast('Assign this teacher to a class and division first.', 'warning');
+    return;
+  }
+  document.getElementById('addStudentForm').reset();
+  document.getElementById('studentClass').value = myClass || '';
+  document.getElementById('studentDivision').value = myDiv || '';
+  openModal('addStudentModal');
+};
+
+window.createStudent = async () => {
+  const name = document.getElementById('studentName').value.trim();
+  const email = document.getElementById('studentEmail').value.trim().toLowerCase();
+  const password = document.getElementById('studentPassword').value;
+
+  if (!name || !email || !password) { showToast('Fill all fields', 'warning'); return; }
+  if (password.length < 6) { showToast('Password min 6 chars', 'warning'); return; }
+  if (!myClass || !myDiv) { showToast('Class/Division missing', 'error'); return; }
+
+  const btn = document.querySelector('#addStudentModal .btn-primary');
+  btn.disabled = true;
+  btn.textContent = 'Creating...';
+
   try {
-    const snap = await getDocs(query(collection(db, 'users'), where('schoolId', '==', schoolId), where('role', '==', 'student'), where('className', '==', myClass), where('division', '==', myDiv)));
-    const tbody = document.getElementById('studentsTable');
-    if (snap.empty) {
-      tbody.innerHTML = '<tr><td colspan="5"><div class="empty-state"><div class="empty-icon">👨‍🎓</div><div class="empty-title">No students found</div><div class="empty-desc">Students register themselves to appear here</div></div></td></tr>';
+    const existing = await getDocs(query(collection(db, 'users'), where('email', '==', email)));
+    if (!existing.empty) {
+      showToast('Account already exists in database.', 'warning');
       return;
     }
-    tbody.innerHTML = '';
-    snap.forEach(d => {
-      const s = d.data();
-      tbody.innerHTML += '<tr><td><strong>' + (s.displayName || '—') + '</strong></td><td>' + (s.email || '—') + '</td><td>' + (s.className || '—') + '</td><td><span class="badge badge-primary">' + (s.division || '—') + '</span></td><td>' + (s.testsTaken || 0) + '</td></tr>';
-    });
-  } catch (e) { console.error('loadStudents:', e); }
-}
 
-// ── Question Builder ──
+    const cred = await createUserWithEmailAndPassword(provisionAuth, email, password);
+    await setDoc(doc(db, 'users', cred.user.uid), {
+      uid: cred.user.uid,
+      email,
+      displayName: name,
+      role: 'student',
+      schoolId,
+      schoolName,
+      className: myClass,
+      division: myDiv,
+      createdBy: uid,
+      createdAt: serverTimestamp(),
+      active: true
+    });
+
+    await fbSignOut(provisionAuth);
+    closeModal('addStudentModal');
+    document.getElementById('addStudentForm').reset();
+    showToast('Student account created successfully.', 'success');
+    await loadStudents();
+  } catch (err) {
+    console.error(err);
+    let msg = 'Failed to create student';
+    if (err.code === 'auth/email-already-in-use') msg = 'This email is already registered.';
+    else if (err.code === 'auth/weak-password') msg = 'Password is too weak.';
+    showToast(msg, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Create Student';
+  }
+};
+
 window.addQuestion = (type) => {
   qCounter++;
   questions.push({
-    id: 'q' + qCounter, type, text: '',
+    id: 'q' + qCounter,
+    type,
+    text: '',
     marks: type === 'descriptive' ? 10 : type === 'short' ? 5 : 2,
     options: (type === 'mcq' || type === 'multi') ? ['', '', '', ''] : null,
     correct: type === 'true-false' ? 'true' : '',
@@ -322,18 +440,19 @@ window.addQuestion = (type) => {
 };
 
 function renderQuestions() {
-  const c = document.getElementById('questionsContainer');
+  const container = document.getElementById('questionsContainer');
   document.getElementById('qCount').textContent = questions.length;
   if (!questions.length) {
-    c.innerHTML = '<div class="empty-state" style="padding:30px"><div class="empty-icon">❓</div><div class="empty-title">No questions added</div><div class="empty-desc">Use the buttons above to add questions</div></div>';
+    container.innerHTML = '<div class="empty-state" style="padding:30px"><div class="empty-title">No questions added</div><div class="empty-desc">Use the buttons above to add questions</div></div>';
     return;
   }
-  c.innerHTML = questions.map((q, i) => {
+
+  container.innerHTML = questions.map((q, i) => {
     let h = '<div class="card" style="margin-bottom:16px"><div class="card-body">';
     h += '<div class="flex-between" style="margin-bottom:12px"><div style="display:flex;gap:8px;align-items:center"><span class="q-type-badge q-type-' + q.type + '">' + qTypeLabel(q.type) + '</span><span style="font-size:0.85rem;color:#94a3b8">Q' + (i + 1) + '</span></div>';
     h += '<div style="display:flex;gap:6px;align-items:center"><input type="number" class="form-control" style="width:70px;padding:6px 8px;font-size:0.82rem" value="' + q.marks + '" onchange="updateQ(' + i + ',\'marks\',+this.value)"/><span style="font-size:0.75rem;color:#64748b">marks</span>';
     h += '<select class="form-control" style="width:90px;padding:6px 8px;font-size:0.82rem" onchange="updateQ(' + i + ',\'difficulty\',this.value)"><option value="easy"' + (q.difficulty === 'easy' ? ' selected' : '') + '>Easy</option><option value="medium"' + (q.difficulty === 'medium' ? ' selected' : '') + '>Medium</option><option value="hard"' + (q.difficulty === 'hard' ? ' selected' : '') + '>Hard</option></select>';
-    h += '<button class="btn btn-sm btn-danger" onclick="removeQ(' + i + ')">✕</button></div></div>';
+    h += '<button class="btn btn-sm btn-danger" onclick="removeQ(' + i + ')">X</button></div></div>';
     h += '<textarea class="form-control" style="min-height:60px;margin-bottom:12px" placeholder="Enter question text..." oninput="updateQ(' + i + ',\'text\',this.value)">' + (q.text || '') + '</textarea>';
 
     if (q.type === 'mcq' || q.type === 'multi') {
@@ -351,143 +470,184 @@ function renderQuestions() {
     } else if (q.type === 'short') {
       h += '<div class="form-group"><label class="form-label">Expected Answer</label><input class="form-control" style="width:350px" value="' + (q.correct || '') + '" oninput="updateQ(' + i + ',\'correct\',this.value)"/></div>';
     } else if (q.type === 'descriptive') {
-      h += '<div style="font-size:0.82rem;color:#64748b;padding:10px 14px;background:rgba(245,158,11,0.05);border-radius:8px;border:1px dashed rgba(245,158,11,0.2)">⚠️ Descriptive — requires manual grading by teacher after submission</div>';
+      h += '<div style="font-size:0.82rem;color:#64748b;padding:10px 14px;background:rgba(245,158,11,0.05);border-radius:8px;border:1px dashed rgba(245,158,11,0.2)">Descriptive answers require manual grading by the teacher.</div>';
     }
     return h + '</div></div>';
   }).join('');
 }
 
-// Update helpers for question builder
 window.updateQ = (idx, field, val) => { questions[idx][field] = val; };
 window.updateOpt = (idx, optIdx, val) => { questions[idx].options[optIdx] = val; };
 window.removeQ = (idx) => { questions.splice(idx, 1); renderQuestions(); };
-window.questions = questions;
-window.renderQuestions = renderQuestions;
 
-// ── Publish Test ──
 window.publishTest = async () => {
   const name = document.getElementById('testName').value.trim();
   const subject = document.getElementById('testSubject').value.trim();
+  const className = document.getElementById('testClass').value;
+  const division = document.getElementById('testDiv').value.trim().toUpperCase();
   if (!name) { showToast('Enter a test name', 'warning'); return; }
   if (!questions.length) { showToast('Add at least one question', 'warning'); return; }
+  if (!className) { showToast('Select a class', 'warning'); return; }
 
   for (let i = 0; i < questions.length; i++) {
-    if (!questions[i].text.trim()) { showToast('Question ' + (i+1) + ' has no text', 'warning'); return; }
-    if (questions[i].type === 'mcq' || questions[i].type === 'multi') {
-      if (!questions[i].options.some(o => o.trim())) { showToast('Q' + (i+1) + ': add options', 'warning'); return; }
-      if (!questions[i].correct) { showToast('Q' + (i+1) + ': set correct answer', 'warning'); return; }
-    }
+    if (!questions[i].text.trim()) { showToast('Question ' + (i + 1) + ' has no text', 'warning'); return; }
+    if ((questions[i].type === 'mcq' || questions[i].type === 'multi') && !questions[i].correct) { showToast('Set the correct answer for question ' + (i + 1), 'warning'); return; }
   }
 
-  try {
-    const testData = {
-      name, subject,
-      totalMarks: +document.getElementById('testMarks').value || 100,
-      passingMarks: +document.getElementById('testPassMarks').value || 35,
-      timeLimit: +document.getElementById('testTime').value || 60,
-      attemptLimit: +document.getElementById('testAttempts').value || 1,
-      className: document.getElementById('testClass').value,
-      division: document.getElementById('testDiv').value.trim(),
-      instructions: document.getElementById('testInstructions').value,
-      shuffle: document.getElementById('testShuffle').checked,
-      negativeMarking: document.getElementById('testNegative').checked,
-      questions: JSON.parse(JSON.stringify(questions)),
-      status: 'published',
-      teacherId: uid,
-      teacherName: teacherName,
-      schoolId, schoolName,
-      createdAt: serverTimestamp(),
-      attemptCount: 0
-    };
-    await addDoc(collection(db, 'tests'), testData);
-    showToast('Test "' + name + '" published! 🚀', 'success');
-    questions = []; qCounter = 0;
-    renderQuestions();
-    document.getElementById('testName').value = '';
-    await loadTests();
-    await loadDashStats();
-  } catch (e) { showToast('Error: ' + e.message, 'error'); }
+  await addDoc(collection(db, 'tests'), {
+    name,
+    subject,
+    totalMarks: +document.getElementById('testMarks').value || 100,
+    passingMarks: +document.getElementById('testPassMarks').value || 35,
+    timeLimit: +document.getElementById('testTime').value || 60,
+    attemptLimit: +document.getElementById('testAttempts').value || 1,
+    className,
+    division,
+    instructions: document.getElementById('testInstructions').value,
+    shuffle: document.getElementById('testShuffle').checked,
+    negativeMarking: document.getElementById('testNegative').checked,
+    questions: JSON.parse(JSON.stringify(questions)),
+    status: 'published',
+    teacherId: uid,
+    teacherName,
+    schoolId,
+    schoolName,
+    createdAt: serverTimestamp(),
+    attemptCount: 0
+  });
+
+  questions = [];
+  qCounter = 0;
+  document.getElementById('testName').value = '';
+  document.getElementById('testSubject').value = '';
+  document.getElementById('testInstructions').value = '';
+  renderQuestions();
+  showToast('Test published!', 'success');
+  await Promise.all([loadTests(), loadDashStats()]);
 };
 
 window.saveDraft = async () => {
   const name = document.getElementById('testName').value.trim() || 'Untitled Draft';
-  try {
-    await addDoc(collection(db, 'tests'), {
-      name, questions: JSON.parse(JSON.stringify(questions)),
-      status: 'draft', teacherId: uid, teacherName, schoolId, schoolName,
-      createdAt: serverTimestamp()
-    });
-    showToast('Draft saved!', 'info');
-    await loadTests();
-  } catch (e) { showToast(e.message, 'error'); }
+  await addDoc(collection(db, 'tests'), {
+    name,
+    questions: JSON.parse(JSON.stringify(questions)),
+    status: 'draft',
+    teacherId: uid,
+    teacherName,
+    schoolId,
+    schoolName,
+    createdAt: serverTimestamp()
+  });
+  showToast('Draft saved!', 'info');
+  await loadTests();
 };
 
-// ── Load Tests ──
 async function loadTests() {
-  try {
-    const snap = await getDocs(query(collection(db, 'tests'), where('teacherId', '==', uid)));
-    const c = document.getElementById('testsList');
-    if (snap.empty) { c.innerHTML = '<div class="empty-state"><div class="empty-icon">📝</div><div class="empty-title">No tests yet</div></div>'; return; }
-    c.innerHTML = '';
-    snap.forEach(d => {
-      const t = d.data();
-      c.innerHTML += '<div class="card" style="margin-bottom:14px"><div class="card-body" style="display:flex;align-items:center;justify-content:space-between"><div><h4 style="font-size:1rem">' + t.name + '</h4><div style="display:flex;gap:6px;margin-top:6px"><span class="badge badge-info">' + (t.subject || 'General') + '</span><span class="badge ' + (t.status === 'published' ? 'badge-success' : 'badge-warning') + '">' + t.status + '</span><span class="badge badge-secondary">' + ((t.questions || []).length) + ' Q</span></div></div><button class="btn btn-sm btn-secondary" onclick="deleteTest(\'' + d.id + '\')">🗑️</button></div></div>';
-    });
-  } catch (e) { console.error(e); }
+  const snap = await getDocs(query(collection(db, 'tests'), where('teacherId', '==', uid)));
+  const container = document.getElementById('testsList');
+  if (snap.empty) {
+    container.innerHTML = '<div class="empty-state"><div class="empty-title">No tests yet</div></div>';
+    return;
+  }
+
+  container.innerHTML = '';
+  snap.forEach(d => {
+    const t = d.data();
+    container.innerHTML += '<div class="card" style="margin-bottom:14px"><div class="card-body" style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap"><div><h4 style="font-size:1rem">' + t.name + '</h4><div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap"><span class="badge badge-info">' + (t.subject || 'General') + '</span><span class="badge ' + (t.status === 'published' ? 'badge-success' : 'badge-warning') + '">' + t.status + '</span><span class="badge badge-secondary">' + ((t.questions || []).length) + ' Q</span></div></div><button class="btn btn-sm btn-secondary" onclick="deleteTest(\'' + d.id + '\')">Delete</button></div></div>';
+  });
 }
 
 window.deleteTest = async (id) => {
   if (!confirm('Delete test?')) return;
-  try { await deleteDoc(doc(db, 'tests', id)); showToast('Deleted', 'warning'); await loadTests(); await loadDashStats(); } catch (e) { showToast(e.message, 'error'); }
+  await deleteDoc(doc(db, 'tests', id));
+  showToast('Deleted', 'warning');
+  await Promise.all([loadTests(), loadDashStats()]);
 };
 
-// ── Question Bank ──
 async function loadBank() {
-  try {
-    const snap = await getDocs(query(collection(db, 'questionBank'), where('teacherId', '==', uid)));
-    const tbody = document.getElementById('bankTable');
-    if (snap.empty) { tbody.innerHTML = '<tr><td colspan="5"><div class="empty-state">Empty</div></td></tr>'; return; }
-    tbody.innerHTML = '';
-    snap.forEach(d => {
-      const q = d.data();
-      tbody.innerHTML += '<tr><td>' + q.question + '</td><td><span class="q-type-badge q-type-' + q.type + '">' + qTypeLabel(q.type) + '</span></td><td>' + (q.subject || '—') + '</td><td>' + q.difficulty + '</td><td><button class="btn btn-sm btn-secondary" onclick="delBankQ(\'' + d.id + '\')">🗑️</button></td></tr>';
-    });
-  } catch (e) { console.error(e); }
+  const snap = await getDocs(query(collection(db, 'questionBank'), where('teacherId', '==', uid)));
+  const tbody = document.getElementById('bankTable');
+  const importList = document.getElementById('importBankList');
+  if (snap.empty) {
+    tbody.innerHTML = '<tr><td colspan="5"><div class="empty-state">Empty</div></td></tr>';
+    importList.innerHTML = '<p>Your question bank is empty. Add questions to the bank first.</p>';
+    return;
+  }
+  tbody.innerHTML = '';
+  importList.innerHTML = '';
+  snap.forEach(d => {
+    const q = d.data();
+    tbody.innerHTML += '<tr><td>' + q.question + '</td><td><span class="q-type-badge q-type-' + q.type + '">' + qTypeLabel(q.type) + '</span></td><td>' + (q.subject || '-') + '</td><td>' + q.difficulty + '</td><td><button class="btn btn-sm btn-secondary" onclick="delBankQ(\'' + d.id + '\')">Delete</button></td></tr>';
+    
+    // Also build the import list
+    importList.innerHTML += '<div class="card" style="margin-bottom:10px"><div class="card-body" style="padding:12px;display:flex;justify-content:space-between;align-items:center;gap:12px"><div><div style="font-size:0.8rem;color:#94a3b8;margin-bottom:4px">' + qTypeLabel(q.type) + ' | ' + (q.subject || 'General') + '</div><p style="font-size:0.9rem;margin:0">' + q.question + '</p></div><button class="btn btn-sm btn-primary" onclick="importToTest(\''+d.id+'\')">Import</button></div></div>';
+  });
 }
 
-window.addToBank = async () => {
-  const q = document.getElementById('bqQ').value.trim();
-  if (!q) return;
-  try {
-    await addDoc(collection(db, 'questionBank'), {
-      question: q, type: document.getElementById('bqType').value,
-      subject: document.getElementById('bqSubject').value,
-      difficulty: document.getElementById('bqDiff').value,
-      answer: document.getElementById('bqAns').value,
-      teacherId: uid, schoolId, createdAt: serverTimestamp()
+window.importToTest = async (id) => {
+  const qSnap = await getDoc(doc(db, 'questionBank', id));
+  if (qSnap.exists()) {
+    const q = qSnap.data();
+    qCounter++;
+    questions.push({
+      id: 'q' + qCounter,
+      type: q.type,
+      text: q.question,
+      marks: q.type === 'descriptive' ? 10 : q.type === 'short' ? 5 : 2,
+      options: (q.type === 'mcq' || q.type === 'multi') ? ['', '', '', ''] : null,
+      correct: q.answer || (q.type === 'true-false' ? 'true' : ''),
+      difficulty: q.difficulty || 'medium'
     });
-    closeModal('addBankQModal'); showToast('Added!', 'success'); await loadBank();
-  } catch (e) { showToast(e.message, 'error'); }
+    renderQuestions();
+    showToast('Question imported!', 'success');
+  }
 };
 
-window.delBankQ = async (id) => { if (!confirm('Remove?')) return; try { await deleteDoc(doc(db, 'questionBank', id)); showToast('Removed', 'warning'); await loadBank(); } catch (e) { showToast(e.message, 'error'); } };
+window.addToBank = async () => {
+  const question = document.getElementById('bqQ').value.trim();
+  if (!question) return;
+  await addDoc(collection(db, 'questionBank'), {
+    question,
+    type: document.getElementById('bqType').value,
+    subject: document.getElementById('bqSubject').value.trim(),
+    difficulty: document.getElementById('bqDiff').value,
+    answer: document.getElementById('bqAns').value.trim(),
+    teacherId: uid,
+    schoolId,
+    createdAt: serverTimestamp()
+  });
+  closeModal('addBankQModal');
+  showToast('Added!', 'success');
+  await loadBank();
+};
 
-// ── Results ──
+window.delBankQ = async (id) => {
+  if (!confirm('Remove?')) return;
+  await deleteDoc(doc(db, 'questionBank', id));
+  showToast('Removed', 'warning');
+  await loadBank();
+};
+
 async function loadResults() {
-  try {
-    const snap = await getDocs(query(collection(db, 'results'), where('teacherId', '==', uid)));
-    const tbody = document.getElementById('resultsTable');
-    if (snap.empty) { tbody.innerHTML = '<tr><td colspan="6"><div class="empty-state">No results</div></td></tr>'; return; }
-    tbody.innerHTML = '';
-    snap.forEach(d => {
-      const r = d.data();
-      const g = getGrade(r.percentage || 0);
-      tbody.innerHTML += '<tr><td>' + (r.studentName || r.studentEmail || '—') + '</td><td>' + r.testName + '</td><td><strong>' + r.score + '/' + r.totalMarks + '</strong></td><td style="color:' + g.color + ';font-weight:700">' + r.percentage + '%</td><td><span class="badge ' + (r.passed ? 'badge-success' : 'badge-danger') + '">' + g.grade + '</span></td><td>' + formatDate(r.submittedAt) + '</td></tr>';
-    });
-  } catch (e) { console.error(e); }
+  const snap = await getDocs(query(collection(db, 'results'), where('teacherId', '==', uid)));
+  const tbody = document.getElementById('resultsTable');
+  if (snap.empty) {
+    tbody.innerHTML = '<tr><td colspan="6"><div class="empty-state">No results</div></td></tr>';
+    return;
+  }
+  tbody.innerHTML = '';
+  snap.forEach(d => {
+    const r = d.data();
+    const grade = getGrade(r.percentage || 0);
+    tbody.innerHTML += '<tr><td>' + (r.studentName || r.studentEmail || '-') + '</td><td>' + (r.testName || '-') + '</td><td><strong>' + (r.score || 0) + '/' + (r.totalMarks || 0) + '</strong></td><td style="color:' + grade.color + ';font-weight:700">' + (r.percentage || 0) + '%</td><td><span class="badge ' + (r.passed ? 'badge-success' : 'badge-danger') + '">' + grade.grade + '</span></td><td>' + formatDate(r.submittedAt) + '</td></tr>';
+  });
 }
 
 renderQuestions();
 </script>
 </body>
 </html>
+
+
+
+
