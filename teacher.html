@@ -928,10 +928,24 @@
     <strong>${result.studentName}</strong> | ${result.testName}
   </div>`;
 
-      test.questions.forEach((q, i) => {
-        const studentAns = result.answers[i] || '—';
-        const correctAns = keys[q.id || i] || '—';
+    test.questions.forEach((q, i) => {
+        const studentAnsRaw = result.answers[i];
+        const correctAnsRaw = keys[q.id || i];
+        const studentAns = studentAnsRaw || '—';
+        const correctAns = correctAnsRaw || '—';
         const isDescriptive = q.type === 'descriptive';
+
+        // Auto-Evaluation Logic
+        let autoMarks = 0;
+        if (!isDescriptive && studentAnsRaw != null && correctAnsRaw != null) {
+          if (q.type === 'mcq' || q.type === 'tf') {
+            if (String(studentAnsRaw) === String(correctAnsRaw)) autoMarks = q.marks;
+          } else if (q.type === 'numerical') {
+            if (parseFloat(studentAnsRaw) === parseFloat(correctAnsRaw)) autoMarks = q.marks;
+          } else if (q.type === 'short') {
+            if (String(studentAnsRaw).trim().toLowerCase() === String(correctAnsRaw).trim().toLowerCase()) autoMarks = q.marks;
+          }
+        }
 
         h += `<div class="card" style="margin-bottom:12px"><div class="card-body">
       <div class="flex-between">
@@ -951,7 +965,7 @@
       </div>
       <div style="margin-top:10px;display:flex;align-items:center;gap:10px">
         <label style="font-size:0.8rem;color:#94a3b8">Marks awarded:</label>
-        <input type="number" class="form-control grader-marks" data-max="${q.marks}" data-qindex="${i}" value="0" style="width:80px" onfocus="this.select()"/>
+        <input type="number" class="form-control grader-marks" data-max="${q.marks}" data-qindex="${i}" value="${autoMarks}" style="width:80px" onfocus="this.select()"/>
       </div>
     </div></div>`;
       });

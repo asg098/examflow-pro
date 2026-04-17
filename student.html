@@ -413,8 +413,8 @@ window.submitExam = async (isAutoSub = false) => {
     
     currentTest = null;
     answers = {};
-    showSection('secHistory', 'navHistory');
-    showToast('Test submitted! Results will be available after teacher review.', 'success');
+    showSection('secResults', 'navResults');
+    showToast('Test submitted successfully! results will be visible after evaluation.', 'success');
     await loadAll();
   } catch (e) {
     console.error(e);
