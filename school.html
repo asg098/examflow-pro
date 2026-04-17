@@ -30,7 +30,13 @@
   </aside>
 
   <main class="main-content">
-    <header class="topbar"><div class="topbar-meta"><span class="topbar-title" id="topbarTitle">School Dashboard</span><span class="topbar-subtitle">An initiative by Judiq AI</span></div><div class="topbar-actions"><button class="topbar-btn" data-theme-toggle onclick="toggleTheme()">Theme</button></div></header>
+    <header class="topbar">
+      <div style="display:flex;align-items:center;gap:12px">
+        <div class="hamburger" id="mobToggle" onclick="toggleSidebar()"><span></span><span></span><span></span></div>
+        <div class="topbar-meta"><span class="topbar-title" id="topbarTitle">School Dashboard</span><span class="topbar-subtitle">An initiative by Judiq AI</span></div>
+      </div>
+      <div class="topbar-actions"><button class="topbar-btn" data-theme-toggle onclick="toggleTheme()">Theme</button></div>
+    </header>
     <div class="page-content">
       <!-- Dashboard -->
       <div class="section" id="secDash">
@@ -38,7 +44,7 @@
           <div class="stat-card"><div class="stat-icon" style="background:rgba(99,102,241,0.15);color:#818cf8">📚</div><div class="stat-value" id="statClasses">0</div><div class="stat-label">Classes</div></div>
           <div class="stat-card"><div class="stat-icon" style="background:rgba(16,185,129,0.15);color:#34d399">🧑‍🏫</div><div class="stat-value" id="statTeachers">0</div><div class="stat-label">Teachers</div></div>
           <div class="stat-card"><div class="stat-icon" style="background:rgba(245,158,11,0.15);color:#fbbf24">👨‍🎓</div><div class="stat-value" id="statStudents">0</div><div class="stat-label">Students</div></div>
-          <div class="stat-card"><div class="stat-icon" style="background:rgba(6,182,212,0.15);color:#67e8f9">📝</div><div class="stat-value" id="statTests">0</div><div class="stat-label">Tests</div></div>
+          <div class="stat-card"><div class="stat-icon" style="background:rgba(6,182,212,0.15);color:#67e8f9">⏳</div><div class="stat-value" id="statPending">0</div><div class="stat-label">Pending Eval</div></div>
         </div>
         <div class="grid g-2">
           <div class="card"><div class="card-header"><h3 style="font-size:1rem">Recent Test Scores</h3></div><div class="card-body"><canvas id="chartPerf" height="220"></canvas></div></div>
@@ -70,10 +76,14 @@
       <!-- Performance -->
       <div class="section hidden" id="secPerf">
         <h2 style="font-size:1.3rem;margin-bottom:20px">School Performance Overview</h2>
-        <div class="grid g-3">
+        <div class="grid g-3" style="margin-bottom:24px">
           <div class="card"><div class="card-body text-center"><div class="score-ring" id="perfRing" style="--pct:0%;margin:0 auto 12px"><span class="score-ring-val" id="perfAvg">—</span><span class="score-ring-lbl">Avg Score</span></div><div class="text-sm" style="color:#94a3b8">School Average</div></div></div>
           <div class="card"><div class="card-body text-center"><div class="stat-value" style="color:#10b981" id="perfPassRate">—</div><div class="text-sm" style="color:#94a3b8;margin-top:8px">Pass Rate</div></div></div>
-          <div class="card"><div class="card-body text-center"><div class="stat-value" style="color:#f59e0b" id="perfTestCount">0</div><div class="text-sm" style="color:#94a3b8;margin-top:8px">Total Tests</div></div></div>
+          <div class="card"><div class="card-body text-center"><div class="stat-value" style="color:#f59e0b" id="perfTestCount">0</div><div class="text-sm" style="color:#94a3b8;margin-top:8px">Total Tests Graded</div></div></div>
+        </div>
+        <div class="grid g-2">
+          <div class="card"><div class="card-header"><h3>Performance by Class</h3></div><div class="card-body"><div class="table-wrap"><table class="table"><thead><tr><th>Class</th><th>Avg Score</th><th>Pass Rate</th></tr></thead><tbody id="perfClassTable"></tbody></table></div></div></div>
+          <div class="card"><div class="card-header"><h3>Subject Breakdown</h3></div><div class="card-body"><canvas id="perfSubjectChart" height="250"></canvas></div></div>
         </div>
       </div>
 
@@ -181,16 +191,21 @@ async function loadAll() {
 }
 
 async function loadDashStats() {
-  const [classSnap, teacherSnap, studentSnap, testSnap] = await Promise.all([
+  const [classSnap, teacherSnap, studentSnap, testSnap, resultSnap] = await Promise.all([
     getDocs(query(collection(db, 'classes'), where('schoolId', '==', schoolId))),
     getDocs(query(collection(db, 'teachers'), where('schoolId', '==', schoolId))),
     getDocs(query(collection(db, 'users'), where('schoolId', '==', schoolId), where('role', '==', 'student'))),
-    getDocs(query(collection(db, 'tests'), where('schoolId', '==', schoolId)))
+    getDocs(query(collection(db, 'tests'), where('schoolId', '==', schoolId))),
+    getDocs(query(collection(db, 'results'), where('schoolId', '==', schoolId)))
   ]);
+
   document.getElementById('statClasses').textContent = classSnap.size;
   document.getElementById('statTeachers').textContent = teacherSnap.size;
   document.getElementById('statStudents').textContent = studentSnap.size;
-  document.getElementById('statTests').textContent = testSnap.size;
+  
+  let pendingCount = 0;
+  resultSnap.forEach(d => { if (d.data().status === 'pending') pendingCount++; });
+  document.getElementById('statPending').textContent = pendingCount;
 }
 
 async function loadPerformance() {
@@ -503,6 +518,67 @@ window.deleteStudent = async (id) => {
   await Promise.all([loadStudents(), loadDashStats()]);
 };
 
+async function loadPerformance() {
+  const resultSnap = await getDocs(query(collection(db, 'results'), where('schoolId', '==', schoolId), where('status', '==', 'graded')));
+  const classPerf = {}; // className -> { sum, count, pass }
+  const subjectPerf = {}; // subject -> { sum, count }
+  
+  let schoolSum = 0;
+  let schoolCount = 0;
+  let schoolPass = 0;
+
+  resultSnap.forEach(d => {
+    const r = d.data();
+    const pct = r.percentage || 0;
+    const cls = r.className || 'Unknown';
+    const subj = r.subject || 'General';
+
+    if (!classPerf[cls]) classPerf[cls] = { sum: 0, count: 0, pass: 0 };
+    classPerf[cls].sum += pct;
+    classPerf[cls].count++;
+    if (r.passed) classPerf[cls].pass++;
+
+    if (!subjectPerf[subj]) subjectPerf[subj] = { sum: 0, count: 0 };
+    subjectPerf[subj].sum += pct;
+    subjectPerf[subj].count++;
+
+    schoolSum += pct;
+    schoolCount++;
+    if (r.passed) schoolPass++;
+  });
+
+  const avg = schoolCount ? Math.round(schoolSum / schoolCount) : 0;
+  document.getElementById('perfAvg').textContent = avg + '%';
+  document.getElementById('perfRing').style.setProperty('--pct', avg + '%');
+  document.getElementById('perfPassRate').textContent = schoolCount ? Math.round((schoolPass / schoolCount) * 100) + '%' : '-';
+  document.getElementById('perfTestCount').textContent = schoolCount;
+
+  const classTbody = document.getElementById('perfClassTable');
+  classTbody.innerHTML = Object.entries(classPerf).map(([name, data]) => `
+    <tr>
+      <td>${name}</td>
+      <td><strong>${Math.round(data.sum / data.count)}%</strong></td>
+      <td>${Math.round((data.pass / data.count) * 100)}%</td>
+    </tr>
+  `).join('');
+
+  const subjectNames = Object.keys(subjectPerf);
+  const subjectValues = subjectNames.map(s => Math.round(subjectPerf[s].sum / subjectPerf[s].count));
+
+  safeChart('perfSubjectChart', {
+    type: 'bar',
+    data: {
+      labels: subjectNames,
+      datasets: [{ label: 'Avg Accuracy %', data: subjectValues, backgroundColor: '#8b5cf6', borderRadius: 8 }]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { display: false } },
+      scales: { y: { beginAtZero: true, max: 100, grid: { color: 'rgba(255,255,255,0.05)' } } }
+    }
+  });
+}
+
 window.saveBranding = async (e) => {
   e.preventDefault();
   const name = document.getElementById('brandName').value.trim();
@@ -515,11 +591,6 @@ window.saveBranding = async (e) => {
   document.getElementById('userSchoolName').textContent = schoolName;
   document.getElementById('topbarTitle').textContent = schoolName;
   showToast('Branding saved!', 'success');
-};
-</script>
-</body>
-</html>
-
 
 
 

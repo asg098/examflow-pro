@@ -27,9 +27,16 @@
   </aside>
 
   <main class="main-content">
-    <header class="topbar"><div class="topbar-meta"><span class="topbar-title">Parent Dashboard</span><span class="topbar-subtitle">An initiative by Judiq AI</span></div><div class="topbar-actions"><button class="topbar-btn" data-theme-toggle onclick="toggleTheme()">Theme</button>
-      <div style="display:flex;align-items:center;gap:8px"><input class="form-control" id="childEmail" placeholder="Child's email" style="width:220px;padding:8px 14px;font-size:0.82rem"/><button class="btn btn-sm btn-primary" onclick="linkChild()">Link</button></div>
-    </div></header>
+    <header class="topbar">
+      <div style="display:flex;align-items:center;gap:12px">
+        <div class="hamburger" id="mobToggle" onclick="toggleSidebar()"><span></span><span></span><span></span></div>
+        <div class="topbar-meta"><span class="topbar-title">Parent Dashboard</span><span class="topbar-subtitle">An initiative by Judiq AI</span></div>
+      </div>
+      <div class="topbar-actions">
+        <div style="display:flex;align-items:center;gap:8px" class="hide-mob"><input class="form-control" id="childEmail" placeholder="Child's email" style="width:200px;padding:8px 14px;font-size:0.82rem"/><button class="btn btn-sm btn-primary" onclick="linkChild()">Link</button></div>
+        <button class="topbar-btn" data-theme-toggle onclick="toggleTheme()">Theme</button>
+      </div>
+    </header>
     <div class="page-content">
 
       <div class="section" id="secDash">

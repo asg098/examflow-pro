@@ -23,7 +23,8 @@ service cloud.firestore {
     }
     
     function isAdmin() {
-      return signedIn() && currentRole() == 'admin';
+      // Secure owner identity: Atharva Sameer Gandhi
+      return signedIn() && request.auth.token.email == 'gandhiatharv565@gmail.com';
     }
 
     // --- SCHOOL HELPERS ---
@@ -51,44 +52,51 @@ service cloud.firestore {
 
     // --- RULES ---
 
+    // Schools: Public to read names, but only admins create. Admins/SchoolAdmins edit.
     match /schools/{schoolId} {
-      allow read: if true;
-      allow create: if signedIn();
+      allow read: if signedIn();
+      allow create: if isAdmin(); // Only platform admins create schools
       allow update, delete: if managesSchool(schoolId);
     }
 
+    // Classes: School-level management
     match /classes/{classId} {
-      allow read: if true;
-      allow create, update, delete: if managesSchool(request.resource.data.schoolId) || managesSchool(resource.data.schoolId);
+      allow read: if signedIn() && schoolMember(resource.data.schoolId);
+      allow create: if managesSchool(request.resource.data.schoolId);
+      allow update, delete: if managesSchool(resource.data.schoolId);
     }
 
+    // Users: Critical protection against privilege escalation
     match /users/{userId} {
+      // Allow read if it's your own profile, you're an admin, or you're a school head.
       allow read: if signedIn() && (
         request.auth.uid == userId ||
         isAdmin() ||
-        (resource.data.schoolId != null && schoolMember(resource.data.schoolId)) ||
+        schoolMember(resource.data.schoolId) ||
         (currentRole() == 'parent' && getUserData().childEmail == resource.data.email)
       );
 
+      // Create: Users can create their own doc on signup, or admins/schools can create.
       allow create: if signedIn() && (
-        request.auth.uid == userId ||
+        // Self-creation: must not set an elevated role
+        (request.auth.uid == userId && request.resource.data.role in ['student', 'parent', 'school']) ||
         isAdmin() ||
-        managesSchool(request.resource.data.schoolId) ||
-        (teachesSchool(request.resource.data.schoolId) && request.resource.data.role == 'student')
+        managesSchool(request.resource.data.schoolId)
       );
 
+      // Update: Prevent role escalation
       allow update: if signedIn() && (
-        request.auth.uid == userId ||
+        // Self-update: Cannot change own role, uid, or schoolId
+        (request.auth.uid == userId && 
+         !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'uid', 'schoolId'])) ||
         isAdmin() ||
-        managesSchool(request.resource.data.schoolId) ||
-        managesSchool(resource.data.schoolId) ||
-        (teachesSchool(request.resource.data.schoolId) && request.resource.data.role == 'student') ||
-        (teachesSchool(resource.data.schoolId) && resource.data.role == 'student')
+        managesSchool(resource.data.schoolId)
       );
 
       allow delete: if isAdmin() || managesSchool(resource.data.schoolId);
     }
 
+    // Teachers mapping
     match /teachers/{teacherId} {
       allow read: if signedIn() && (
         schoolMember(resource.data.schoolId) ||
@@ -97,11 +105,64 @@ service cloud.firestore {
       allow create, update, delete: if managesSchool(request.resource.data.schoolId) || managesSchool(resource.data.schoolId);
     }
 
+    // Tests & Questions
     match /tests/{testId} {
+      allow read: if signedIn() && schoolMember(resource.data.schoolId);
+      
+      allow create: if signedIn() && (
+        isAdmin() ||
+        managesSchool(request.resource.data.schoolId) ||
+        teachesSchool(request.resource.data.schoolId)
+      );
+      
+      allow update: if signedIn() && (
+        isAdmin() ||
+        managesSchool(resource.data.schoolId) ||
+        (teachesSchool(resource.data.schoolId) && resource.data.teacherId == request.auth.uid)
+      );
+
+      allow delete: if isAdmin() || managesSchool(resource.data.schoolId);
+
+      // Private Key Security: ABSOLUTELY NO STUDENT ACCESS
+      match /private/{docId} {
+        allow read, write: if signedIn() && (
+          isAdmin() ||
+          managesSchool(get(/databases/$(database)/documents/tests/$(testId)).data.schoolId) ||
+          teachesSchool(get(/databases/$(database)/documents/tests/$(testId)).data.schoolId)
+        );
+      }
+    }
+
+    // Results: The core of the exam security
+    match /results/{resultId} {
       allow read: if signedIn() && (
         isAdmin() ||
-        schoolMember(resource.data.schoolId) ||
-        schoolMember(request.resource.data.schoolId)
+        request.auth.uid == resource.data.studentId ||
+        request.auth.uid == resource.data.teacherId ||
+        managesSchool(resource.data.schoolId) ||
+        (currentRole() == 'parent' && getUserData().childEmail == resource.data.studentEmail)
+      );
+
+      allow create: if signedIn() && (
+        // Students can only create their own results and must start as 'pending'
+        (request.auth.uid == request.resource.data.studentId && request.resource.data.status == 'pending') ||
+        isAdmin() ||
+        managesSchool(request.resource.data.schoolId)
+      );
+
+      // NO STUDENT UPDATES: Only teachers/admins can grade or delete results
+      allow update, delete: if signedIn() && (
+        isAdmin() ||
+        managesSchool(resource.data.schoolId) ||
+        request.auth.uid == resource.data.teacherId
+      );
+    }
+
+    // Question Bank
+    match /questionBank/{questionId} {
+      allow read: if signedIn() && (
+        isAdmin() ||
+        schoolMember(resource.data.schoolId)
       );
       allow create, update, delete: if signedIn() && (
         isAdmin() ||
@@ -110,55 +171,18 @@ service cloud.firestore {
       );
     }
 
-    match /results/{resultId} {
-      allow read: if signedIn() && (
-        isAdmin() ||
-        request.auth.uid == resource.data.studentId ||
-        request.auth.uid == resource.data.teacherId ||
-        schoolMember(resource.data.schoolId) ||
-        (currentRole() == 'parent' && getUserData().childEmail == resource.data.studentEmail)
-      );
-      allow create: if signedIn() && (
-        isAdmin() ||
-        request.auth.uid == request.resource.data.studentId ||
-        request.auth.uid == request.resource.data.teacherId ||
-        schoolMember(request.resource.data.schoolId)
-      );
-      allow update, delete: if signedIn() && (
-        isAdmin() ||
-        request.auth.uid == resource.data.teacherId ||
-        managesSchool(resource.data.schoolId)
-      );
-    }
-
-    match /questionBank/{questionId} {
-      allow read: if signedIn() && (
-        isAdmin() ||
-        request.auth.uid == resource.data.teacherId ||
-        schoolMember(resource.data.schoolId)
-      );
-      allow create, update, delete: if signedIn() && (
-        isAdmin() ||
-        request.auth.uid == request.resource.data.teacherId ||
-        request.auth.uid == resource.data.teacherId ||
-        managesSchool(request.resource.data.schoolId) ||
-        managesSchool(resource.data.schoolId)
-      );
-    }
-
+    // Certificates
     match /certificates/{certId} {
       allow read: if signedIn() && (
-        isAdmin() ||
-        request.auth.uid == resource.data.studentId ||
+        request.auth.uid == resource.data.studentId || 
         schoolMember(resource.data.schoolId)
       );
       allow create: if signedIn() && (
         isAdmin() ||
-        request.auth.uid == request.resource.data.studentId ||
-        request.auth.uid == request.resource.data.teacherId ||
-        schoolMember(request.resource.data.schoolId)
+        managesSchool(request.resource.data.schoolId) ||
+        teachesSchool(request.resource.data.schoolId)
       );
-      allow update, delete: if isAdmin() || managesSchool(resource.data.schoolId);
+      allow delete: if isAdmin();
     }
   }
 }

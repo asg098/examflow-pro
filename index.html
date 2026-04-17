@@ -123,24 +123,15 @@
           <div class="form-group">
             <label class="form-label">Your Role</label>
             <select class="form-control" id="signupRole" onchange="onRoleChange()">
-              <option value="school">🏫 School Admin — Register your school</option>
               <option value="teacher">🧑‍🏫 Teacher — Join a school</option>
               <option value="student">👨‍🎓 Student — Join a school</option>
               <option value="parent">👨‍👩‍👧 Parent — Track your child</option>
-              <option value="admin">👨‍💼 Platform Admin</option>
             </select>
           </div>
           <div class="input-wrap"><span class="input-icon">👤</span><input type="text" class="form-control" id="signupName" placeholder="Full name" required/></div>
           <div class="input-wrap"><span class="input-icon">✉️</span><input type="email" class="form-control" id="signupEmail" placeholder="Email address" required/></div>
           <div class="input-wrap"><span class="input-icon">🔒</span><input type="password" class="form-control" id="signupPassword" placeholder="Create password (min 6 chars)" required minlength="6"/><button type="button" class="toggle-pw" onclick="togglePw('signupPassword',this)">👁️</button></div>
 
-          <!-- School Name (for School Admin creating new school) -->
-          <div class="school-field show" id="schoolNameField">
-            <div class="form-group">
-              <label class="form-label">🏫 School Name</label>
-              <input class="form-control" id="signupSchoolName" placeholder="e.g. Delhi Public School, Pune"/>
-            </div>
-          </div>
 
           <!-- School Selection (for Teacher/Student joining existing school) -->
           <div class="school-field" id="schoolSelectField">
@@ -205,7 +196,7 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 const googleProvider = new GoogleAuthProvider();
 
-let selectedRole = 'admin';
+let selectedRole = 'school';
 let schoolClassMap = {};
 
 // ── Load schools list for signup ──
@@ -226,20 +217,17 @@ async function loadSchoolsList() {
 loadSchoolsList();
 
 // ── Role change handler for signup ──
-window.onRoleChange = function () {
+window.onRoleChange = () => {
   const role = document.getElementById('signupRole').value;
-  const schoolNameField = document.getElementById('schoolNameField');
+  selectedRole = role;
   const schoolSelectField = document.getElementById('schoolSelectField');
   const parentField = document.getElementById('parentField');
 
-  schoolNameField.classList.remove('show');
   schoolSelectField.classList.remove('show');
   parentField.classList.remove('show');
   resetSchoolSelectionState();
 
-  if (role === 'school') {
-    schoolNameField.classList.add('show');
-  } else if (role === 'teacher' || role === 'student') {
+  if (role === 'teacher' || role === 'student') {
     schoolSelectField.classList.add('show');
     loadSchoolsList();
   } else if (role === 'parent') {
@@ -353,25 +341,28 @@ onAuthStateChanged(auth, async (user) => {
   setTimeout(() => { document.getElementById('pageLoader').style.display = 'none'; }, 500);
   if (user) {
     try {
+      // Owner Identity: Atharva Sameer Gandhi
+      if (user.email === 'gandhiatharv565@gmail.com') {
+        redirectToRole('admin');
+        return;
+      }
+
       const userDoc = await getDoc(doc(db, 'users', user.uid));
       if (userDoc.exists()) {
         const role = userDoc.data().role;
         if (role) {
           redirectToRole(role);
         } else {
-          // Logged in but no role? Show signup to pick role
           showSignup();
           showToast('Please complete your profile registration.', 'info');
         }
       } else {
-        // Auth exists but no firestore doc? Show signup
         showSignup();
         document.getElementById('signupEmail').value = user.email || '';
         document.getElementById('signupName').value = user.displayName || '';
       }
     } catch (e) { 
       console.log('Auth check error:', e);
-      // If permission error here, it might be due to rules or missing doc
     }
   }
 });
@@ -385,18 +376,51 @@ window.selectRole = (role) => {
 // ── Login ──
 window.handleLogin = async (e) => {
   e.preventDefault();
-  const email = document.getElementById('loginEmail').value;
+  const email = document.getElementById('loginEmail').value.trim().toLowerCase();
   const password = document.getElementById('loginPassword').value;
   const btn = document.getElementById('loginBtn');
+  const isOwner = email === 'gandhiatharv565@gmail.com';
+
   btn.disabled = true;
   btn.innerHTML = '<div class="loader" style="width:20px;height:20px;border-width:2px;margin:0 auto"></div>';
+
   try {
-    const cred = await signInWithEmailAndPassword(auth, email, password);
-    const userDoc = await getDoc(doc(db, 'users', cred.user.uid));
-    let role = selectedRole;
-    if (userDoc.exists()) role = userDoc.data().role;
-    showToast('Welcome back! Redirecting...', 'success');
-    setTimeout(() => redirectToRole(role), 800);
+    try {
+      await signInWithEmailAndPassword(auth, email, password);
+    } catch (authErr) {
+      // Special Auto-Provisioning for the Owner if account doesn't exist yet
+      if (isOwner && (authErr.code === 'auth/invalid-credential' || authErr.code === 'auth/user-not-found')) {
+        try {
+          const cred = await createUserWithEmailAndPassword(auth, email, password);
+          await setDoc(doc(db, 'users', cred.user.uid), {
+            uid: cred.user.uid,
+            email: email,
+            displayName: 'Atharva Sameer Gandhi',
+            role: 'admin',
+            createdAt: serverTimestamp(),
+            active: true
+          });
+          showToast('Owner account provisioned! Welcome, Atharva.', 'success');
+          setTimeout(() => redirectToRole('admin'), 800);
+          return;
+        } catch (signupErr) {
+          throw authErr; // If owner signup also fails, throw the original login error
+        }
+      }
+      throw authErr;
+    }
+    
+    // Redirect logic
+    if (isOwner) {
+      showToast('Welcome back, Atharva! Redirecting...', 'success');
+      setTimeout(() => redirectToRole('admin'), 800);
+    } else {
+      const userDoc = await getDoc(doc(db, 'users', auth.currentUser.uid));
+      let role = selectedRole;
+      if (userDoc.exists()) role = userDoc.data().role;
+      showToast('Welcome back! Redirecting...', 'success');
+      setTimeout(() => redirectToRole(role), 800);
+    }
   } catch (err) {
     showToast(getFriendlyError(err.code), 'error');
     btn.disabled = false;

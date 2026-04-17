@@ -33,7 +33,13 @@
   </aside>
 
   <main class="main-content">
-    <header class="topbar"><div class="topbar-meta"><span class="topbar-title" id="topbarTitle">Teacher Dashboard</span><span class="topbar-subtitle">An initiative by Judiq AI</span></div><div class="topbar-actions"><button class="topbar-btn" data-theme-toggle onclick="toggleTheme()">Theme</button></div></header>
+    <header class="topbar">
+      <div style="display:flex;align-items:center;gap:12px">
+        <div class="hamburger" id="mobToggle" onclick="toggleSidebar()"><span></span><span></span><span></span></div>
+        <div class="topbar-meta"><span class="topbar-title" id="topbarTitle">Teacher Dashboard</span><span class="topbar-subtitle">An initiative by Judiq AI</span></div>
+      </div>
+      <div class="topbar-actions"><button class="topbar-btn" data-theme-toggle onclick="toggleTheme()">Theme</button></div>
+    </header>
     <div class="page-content">
 
       <!-- Dashboard -->
@@ -130,7 +136,7 @@
       <!-- Results -->
       <div class="section hidden" id="secResults">
         <h2 style="font-size:1.3rem;margin-bottom:20px">Test Results</h2>
-        <div class="card"><div class="card-body"><div class="table-wrap"><table class="table"><thead><tr><th>Student</th><th>Test</th><th>Score</th><th>Percentage</th><th>Status</th><th>Date</th></tr></thead><tbody id="resultsTable"><tr><td colspan="6"><div class="empty-state"><div class="empty-icon">📋</div><div class="empty-title">No results yet</div></div></td></tr></tbody></table></div></div></div>
+        <div class="card"><div class="card-body"><div class="table-wrap"><table class="table"><thead><tr><th>Student</th><th>Test</th><th>Score</th><th>%</th><th>Grade</th><th>Status</th><th>Date</th></tr></thead><tbody id="resultsTable"><tr><td colspan="7"><div class="empty-state"><div class="empty-icon">📋</div><div class="empty-title">No results yet</div></div></td></tr></tbody></table></div></div></div>
       </div>
 
       <!-- Evaluations -->
@@ -143,8 +149,7 @@
   </main>
 </div>
 
-<!-- Add Bank Question Modal -->
-<div class="modal-overlay" id="addBankQModal"><div class="modal"><div class="modal-header"><h3 class="modal-title">Add to Question Bank</h3><button class="modal-close" onclick="closeModal('addBankQModal')">✕</button></div><div class="modal-body"><div class="auth-form" id="addBankForm"><div class="form-group"><label class="form-label">Question</label><textarea class="form-control" id="bqQ"></textarea></div><div class="form-group"><label class="form-label">Type</label><select class="form-control" id="bqType"><option value="mcq">MCQ</option><option value="multi">Multi-select</option><option value="true-false">True/False</option><option value="numerical">Numerical</option><option value="short">Short Answer</option><option value="descriptive">Descriptive</option></select></div><div class="form-group"><label class="form-label">Subject</label><input class="form-control" id="bqSubject"/></div><div class="form-group"><label class="form-label">Difficulty</label><select class="form-control" id="bqDiff"><option value="easy">Easy</option><option value="medium" selected>Medium</option><option value="hard">Hard</option></select></div><div class="form-group"><label class="form-label">Correct Answer</label><input class="form-control" id="bqAns"/></div></div></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal('addBankQModal')">Cancel</button><button class="btn btn-primary" onclick="addToBank()">Save</button></div></div></div>
+<div class="modal-overlay" id="addBankQModal"><div class="modal"><div class="modal-header"><h3 class="modal-title">Add to Question Bank</h3><button class="modal-close" onclick="closeModal('addBankQModal')">✕</button></div><div class="modal-body"><div class="auth-form" id="addBankForm"><div class="form-group"><label class="form-label">Question Text</label><textarea class="form-control" id="bqQ" rows="3"></textarea></div><div class="form-group"><label class="form-label">Type</label><select class="form-control" id="bqType" onchange="toggleBankOptions()"><option value="mcq">MCQ</option><option value="multi">Multi-select</option><option value="true-false">True/False</option><option value="numerical">Numerical</option><option value="short">Short Answer</option><option value="descriptive">Descriptive</option></select></div><div id="bankOptionsContainer" style="display:none"><div class="grid g-2" style="gap:8px;margin-bottom:12px"><input class="form-control bq-opt" placeholder="Option A"/><input class="form-control bq-opt" placeholder="Option B"/><input class="form-control bq-opt" placeholder="Option C"/><input class="form-control bq-opt" placeholder="Option D"/></div></div><div class="form-group"><label class="form-label">Correct Answer</label><input class="form-control" id="bqAns" placeholder="A (for MCQ) or text"/></div><div class="grid g-2" style="gap:12px"><div class="form-group"><label class="form-label">Subject</label><input class="form-control" id="bqSubject" placeholder="General"/></div><div class="form-group"><label class="form-label">Difficulty</label><select class="form-control" id="bqDiff"><option value="easy">Easy</option><option value="medium" selected>Medium</option><option value="hard">Hard</option></select></div></div></div></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal('addBankQModal')">Cancel</button><button class="btn btn-primary" onclick="addToBank()">Save Question</button></div></div></div>
 
 <div class="modal-overlay" id="addStudentModal"><div class="modal"><div class="modal-header"><h3 class="modal-title">Add Student</h3><button class="modal-close" onclick="closeModal('addStudentModal')">✕</button></div><div class="modal-body"><form class="auth-form" id="addStudentForm"><div class="form-group"><label class="form-label">Student Name</label><input class="form-control" id="studentName" required/></div><div class="form-group"><label class="form-label">Student Email</label><input type="email" class="form-control" id="studentEmail" required/></div><div class="form-group"><label class="form-label">Temporary Password</label><input class="form-control" id="studentPassword" required minlength="6" placeholder="Minimum 6 characters"/></div><div class="grid g-2" style="gap:12px"><div class="form-group"><label class="form-label">Class</label><input class="form-control" id="studentClass" readonly/></div><div class="form-group"><label class="form-label">Division</label><input class="form-control" id="studentDivision" readonly/></div></div><p style="font-size:0.82rem;color:#64748b">This creates a student login in your assigned class and division.</p></form></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal('addStudentModal')">Cancel</button><button class="btn btn-primary" onclick="createStudent()">Create Student</button></div></div></div>
 
@@ -226,6 +231,7 @@ async function loadAll() {
     { name: 'Tests', fn: loadTests },
     { name: 'Bank', fn: loadBank },
     { name: 'Results', fn: loadResults },
+    { name: 'Evaluations', fn: loadEvaluations },
     { name: 'Stats', fn: loadDashStats }
   ];
 
@@ -277,7 +283,7 @@ async function loadDashStats() {
   const [studentSnap, testSnap, resultSnap] = await Promise.all([
     getDocs(query(collection(db, 'users'), where('schoolId', '==', schoolId), where('role', '==', 'student'))),
     getDocs(query(collection(db, 'tests'), where('teacherId', '==', uid))),
-    getDocs(query(collection(db, 'results'), where('teacherId', '==', uid)))
+    getDocs(query(collection(db, 'results'), where('teacherId', '==', uid), where('status', '==', 'graded')))
   ]);
 
   // Manual filter for class/division in stats if needed
@@ -304,6 +310,7 @@ async function loadDashStats() {
 
   resultSnap.forEach(d => {
     const r = d.data();
+    if (r.isEvaluated === false) return;
     const pct = r.percentage || 0;
     total++;
     sum += pct;
@@ -331,6 +338,33 @@ async function loadDashStats() {
 
   const avg = total ? Math.round(sum / total) : 0;
   const passRate = total ? Math.round((passed / total) * 100) : 0;
+  // Weak student detection
+  const studentPerf = {}; // email -> { name, scores: [] }
+  resultSnap.forEach(d => {
+    const r = d.data();
+    if (!r.studentEmail || !r.isEvaluated) return;
+    if (!studentPerf[r.studentEmail]) studentPerf[r.studentEmail] = { name: r.studentName, scores: [] };
+    studentPerf[r.studentEmail].scores.push(r.percentage || 0);
+  });
+
+  const weakList = document.getElementById('weakList');
+  if (weakList) {
+    const sortedWeak = Object.entries(studentPerf)
+      .map(([email, data]) => ({ email, name: data.name, avg: Math.round(data.scores.reduce((a,b)=>a+b,0)/data.scores.length) }))
+      .filter(s => s.avg < 40)
+      .sort((a,b) => a.avg - b.avg);
+
+    if (sortedWeak.length) {
+      weakList.innerHTML = sortedWeak.map(s => `
+        <div class="list-item" style="padding:12px;display:flex;justify-content:space-between;align-items:center;background:rgba(239,68,68,0.05);border:1px solid rgba(239,68,68,0.1);border-radius:10px;margin-bottom:8px">
+          <div><div style="font-weight:600;font-size:0.9rem">${s.name}</div><div style="font-size:0.75rem;color:#94a3b8">${s.email}</div></div>
+          <div style="color:#ef4444;font-weight:700">${s.avg}%</div>
+        </div>
+      `).join('');
+    } else {
+      weakList.innerHTML = '<p style="color:#10b981;font-size:0.875rem">No weak students detected. All students are above 40%.</p>';
+    }
+  }
   document.getElementById('sAvg').textContent = total ? avg + '%' : '-';
   document.getElementById('sPass').textContent = total ? passRate + '%' : '-';
   document.getElementById('anaAvg').textContent = total ? avg + '%' : '-';
@@ -527,51 +561,54 @@ window.publishTest = async () => {
   if (!questions.length) { showToast('Add at least one question', 'warning'); return; }
   if (!className) { showToast('Select a class', 'warning'); return; }
 
-  for (let i = 0; i < questions.length; i++) {
-    if (!questions[i].text.trim()) { showToast('Question ' + (i + 1) + ' has no text', 'warning'); return; }
-    if ((questions[i].type === 'mcq' || questions[i].type === 'multi') && !questions[i].correct) { showToast('Set the correct answer for question ' + (i + 1), 'warning'); return; }
+  const btn = document.querySelector('button[onclick="publishTest()"]');
+  if (btn) { btn.disabled = true; btn.textContent = 'Publishing...'; }
+
+  try {
+    const testRef = await addDoc(collection(db, 'tests'), {
+      name,
+      subject,
+      totalMarks: +document.getElementById('testMarks').value || 100,
+      passingMarks: +document.getElementById('testPassMarks').value || 35,
+      timeLimit: +document.getElementById('testTime').value || 60,
+      attemptLimit: +document.getElementById('testAttempts').value || 1,
+      className,
+      division,
+      instructions: document.getElementById('testInstructions').value,
+      shuffle: document.getElementById('testShuffle').checked,
+      negativeMarking: document.getElementById('testNegative').checked,
+      questions: questions.map(q => {
+        const qCopy = { ...q };
+        delete qCopy.correct;
+        return qCopy;
+      }),
+      status: 'published',
+      teacherId: uid,
+      teacherName,
+      schoolId,
+      schoolName,
+      createdAt: serverTimestamp(),
+      attemptCount: 0,
+      hasDescriptive: questions.some(q => q.type === 'descriptive')
+    });
+
+    const answerKeys = {};
+    questions.forEach((q, i) => { if (q.correct) answerKeys[q.id || i] = q.correct; });
+    await setDoc(doc(db, 'tests', testRef.id, 'private', 'keys'), { keys: answerKeys });
+
+    questions = [];
+    qCounter = 0;
+    document.getElementById('testName').value = '';
+    document.getElementById('testSubject').value = '';
+    document.getElementById('testInstructions').value = '';
+    renderQuestions();
+    showToast('Test published!', 'success');
+    await Promise.all([loadTests(), loadDashStats()]);
+  } catch (e) {
+    showToast('Error: ' + e.message, 'error');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '🚀 Publish Test'; }
   }
-
-  const testRef = await addDoc(collection(db, 'tests'), {
-    name,
-    subject,
-    totalMarks: +document.getElementById('testMarks').value || 100,
-    passingMarks: +document.getElementById('testPassMarks').value || 35,
-    timeLimit: +document.getElementById('testTime').value || 60,
-    attemptLimit: +document.getElementById('testAttempts').value || 1,
-    className,
-    division,
-    instructions: document.getElementById('testInstructions').value,
-    shuffle: document.getElementById('testShuffle').checked,
-    negativeMarking: document.getElementById('testNegative').checked,
-    questions: questions.map(q => {
-      const qCopy = { ...q };
-      delete qCopy.correct; // CRITICAL: Strip answers from student view
-      return qCopy;
-    }),
-    status: 'published',
-    teacherId: uid,
-    teacherName,
-    schoolId,
-    schoolName,
-    createdAt: serverTimestamp(),
-    attemptCount: 0,
-    hasDescriptive: questions.some(q => q.type === 'descriptive')
-  });
-
-  // Store keys in a separate document for security
-  const answerKeys = {};
-  questions.forEach((q, i) => { if (q.correct) answerKeys[q.id || i] = q.correct; });
-  await setDoc(doc(db, 'tests', testRef.id, 'private', 'keys'), { keys: answerKeys });
-
-  questions = [];
-  qCounter = 0;
-  document.getElementById('testName').value = '';
-  document.getElementById('testSubject').value = '';
-  document.getElementById('testInstructions').value = '';
-  renderQuestions();
-  showToast('Test published!', 'success');
-  await Promise.all([loadTests(), loadDashStats()]);
 };
 
 window.saveDraft = async () => {
@@ -632,6 +669,115 @@ async function loadBank() {
   });
 }
 
+// --- Evaluation System ---
+window.loadEvaluations = async () => {
+  const snap = await getDocs(query(collection(db, 'results'), where('teacherId', '==', uid), where('status', '==', 'pending')));
+  const tbody = document.getElementById('evalTable');
+  const badge = document.getElementById('evalCount');
+  
+  if (snap.empty) {
+    tbody.innerHTML = '<tr><td colspan="4"><div class="empty-state">All caught up!</div></td></tr>';
+    badge.style.display = 'none';
+    return;
+  }
+  
+  badge.textContent = snap.size;
+  badge.style.display = 'inline-block';
+  tbody.innerHTML = '';
+  snap.forEach(d => {
+    const r = d.data();
+    tbody.innerHTML += `<tr>
+      <td>${r.studentName}</td>
+      <td>${r.testName}</td>
+      <td>${r.schoolName || '-'}</td>
+      <td>${formatDate(r.submittedAt)}</td>
+      <td><button class="btn btn-sm btn-primary" onclick="openGradeModal('${d.id}')">Grade</button></td>
+    </tr>`;
+  });
+};
+
+let activeResultId = null;
+window.openGradeModal = async (id) => {
+  activeResultId = id;
+  const rSnap = await getDoc(doc(db, 'results', id));
+  if (!rSnap.exists()) return;
+  const result = rSnap.data();
+  
+  const testSnap = await getDoc(doc(db, 'tests', result.testId));
+  const keysSnap = await getDoc(doc(db, 'tests', result.testId, 'private', 'keys'));
+  if (!testSnap.exists() || !keysSnap.exists()) {
+    showToast('Test data or keys not found', 'error');
+    return;
+  }
+  
+  const test = testSnap.data();
+  const keys = keysSnap.data().keys || {};
+  const container = document.getElementById('gradeContainer');
+  let h = `<div style="margin-bottom:20px;padding:12px;background:rgba(99,102,241,0.05);border-radius:10px">
+    <strong>${result.studentName}</strong> | ${result.testName}
+  </div>`;
+  
+  test.questions.forEach((q, i) => {
+    const studentAns = result.answers[i] || '—';
+    const correctAns = keys[q.id || i] || '—';
+    const isDescriptive = q.type === 'descriptive';
+    
+    h += `<div class="card" style="margin-bottom:12px"><div class="card-body">
+      <div class="flex-between">
+        <span class="badge ${isDescriptive ? 'badge-warning' : 'badge-info'}">${qTypeLabel(q.type)}</span>
+        <span style="font-size:0.8rem">${q.marks} Marks</span>
+      </div>
+      <p style="margin:10px 0;font-weight:600">${q.text}</p>
+      <div class="grid g-2" style="gap:10px">
+        <div style="padding:10px;background:rgba(255,255,255,0.03);border-radius:8px">
+          <div style="font-size:0.7rem;color:#94a3b8;margin-bottom:4px">Student's Answer</div>
+          <div style="font-size:0.875rem">${studentAns}</div>
+        </div>
+        <div style="padding:10px;background:rgba(16,185,129,0.03);border-radius:8px">
+          <div style="font-size:0.7rem;color:#34d399;margin-bottom:4px">Correct Answer/Ref</div>
+          <div style="font-size:0.875rem">${correctAns}</div>
+        </div>
+      </div>
+      <div style="margin-top:10px;display:flex;align-items:center;gap:10px">
+        <label style="font-size:0.8rem;color:#94a3b8">Marks awarded:</label>
+        <input type="number" class="form-control grader-marks" data-max="${q.marks}" data-qindex="${i}" value="0" style="width:80px"/>
+      </div>
+    </div></div>`;
+  });
+  
+  container.innerHTML = h;
+  openModal('gradeModal');
+};
+
+window.submitGrades = async () => {
+  const inputs = document.querySelectorAll('.grader-marks');
+  let totalScore = 0;
+  inputs.forEach(input => { totalScore += parseFloat(input.value || 0); });
+  
+  try {
+    const resSnap = await getDoc(doc(db, 'results', activeResultId));
+    const res = resSnap.data();
+    const pct = Math.round((totalScore / res.totalMarks) * 100);
+    const passed = pct >= (res.passingMarks || 35);
+    const grade = getGrade(pct);
+    
+    await updateDoc(doc(db, 'results', activeResultId), {
+      score: totalScore,
+      percentage: pct,
+      grade: grade.grade,
+      passed: passed,
+      status: 'graded',
+      isEvaluated: true,
+      evaluatedAt: serverTimestamp()
+    });
+    
+    closeModal('gradeModal');
+    showToast('Grades submitted!', 'success');
+    await loadAll();
+  } catch (e) {
+    console.error(e);
+    showToast('Grading failed: ' + e.message, 'error');
+  }
 window.importToTest = async (id) => {
   const qSnap = await getDoc(doc(db, 'questionBank', id));
   if (qSnap.exists()) {
@@ -651,12 +797,25 @@ window.importToTest = async (id) => {
   }
 };
 
+window.toggleBankOptions = () => {
+  const type = document.getElementById('bqType').value;
+  document.getElementById('bankOptionsContainer').style.display = (type === 'mcq' || type === 'multi') ? 'block' : 'none';
+};
+
 window.addToBank = async () => {
   const question = document.getElementById('bqQ').value.trim();
+  const type = document.getElementById('bqType').value;
   if (!question) return;
+
+  const options = [];
+  if (type === 'mcq' || type === 'multi') {
+    document.querySelectorAll('.bq-opt').forEach(opt => options.push(opt.value.trim()));
+  }
+
   await addDoc(collection(db, 'questionBank'), {
     question,
-    type: document.getElementById('bqType').value,
+    type,
+    options: options.length ? options : null,
     subject: document.getElementById('bqSubject').value.trim(),
     difficulty: document.getElementById('bqDiff').value,
     answer: document.getElementById('bqAns').value.trim(),
@@ -665,7 +824,8 @@ window.addToBank = async () => {
     createdAt: serverTimestamp()
   });
   closeModal('addBankQModal');
-  showToast('Added!', 'success');
+  showToast('Added to bank!', 'success');
+  document.getElementById('addBankForm').reset();
   await loadBank();
 };
 
@@ -686,8 +846,19 @@ async function loadResults() {
   tbody.innerHTML = '';
   snap.forEach(d => {
     const r = d.data();
-    const grade = getGrade(r.percentage || 0);
-    tbody.innerHTML += '<tr><td>' + (r.studentName || r.studentEmail || '-') + '</td><td>' + (r.testName || '-') + '</td><td><strong>' + (r.score || 0) + '/' + (r.totalMarks || 0) + '</strong></td><td style="color:' + grade.color + ';font-weight:700">' + (r.percentage || 0) + '%</td><td><span class="badge ' + (r.passed ? 'badge-success' : 'badge-danger') + '">' + grade.grade + '</span></td><td>' + formatDate(r.submittedAt) + '</td></tr>';
+    const isPending = r.status === 'pending';
+    const grade = isPending ? { grade: '-', color: '#94a3b8' } : getGrade(r.percentage || 0);
+    const scoreText = isPending ? '—' : `<strong>${r.score || 0}/${r.totalMarks || 0}</strong>`;
+    
+    tbody.innerHTML += `<tr>
+      <td>${r.studentName || '-'}</td>
+      <td>${r.testName || '-'}</td>
+      <td>${scoreText}</td>
+      <td>${isPending ? '—' : (r.percentage || 0) + '%'}</td>
+      <td><span class="badge ${isPending ? 'badge-secondary' : (r.passed ? 'badge-success' : 'badge-danger')}">${grade.grade}</span></td>
+      <td><span class="badge ${isPending ? 'badge-warning' : 'badge-success'}">${(r.status || 'graded').toUpperCase()}</span></td>
+      <td>${formatDate(r.submittedAt)}</td>
+    </tr>`;
   });
 }
 

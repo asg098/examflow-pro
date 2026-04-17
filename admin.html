@@ -28,7 +28,13 @@
   </aside>
 
   <main class="main-content">
-    <header class="topbar"><div class="topbar-meta"><span class="topbar-title">Admin Dashboard</span><span class="topbar-subtitle">Free school exam initiative by Judiq AI</span></div><div class="topbar-actions"><button class="topbar-btn" data-theme-toggle onclick="toggleTheme()">Theme</button></div></header>
+    <header class="topbar">
+      <div style="display:flex;align-items:center;gap:12px">
+        <div class="hamburger" id="mobToggle" onclick="toggleSidebar()"><span></span><span></span><span></span></div>
+        <div class="topbar-meta"><span class="topbar-title">Admin Dashboard</span><span class="topbar-subtitle">Free school exam initiative by Judiq AI</span></div>
+      </div>
+      <div class="topbar-actions"><button class="topbar-btn" data-theme-toggle onclick="toggleTheme()">Theme</button></div>
+    </header>
     <div class="page-content">
       <div class="section" id="secDash">
         <div class="grid g-4" style="margin-bottom:28px">
@@ -81,10 +87,20 @@ onAuthStateChanged(auth, async (u) => {
   document.getElementById('pageLoader').style.opacity = '0';
   setTimeout(() => document.getElementById('pageLoader').style.display = 'none', 500);
   if (!u) { window.location.href = 'index.html'; return; }
+
+  // Secure Owner Bypass: Atharva Sameer Gandhi
+  const isOwner = u.email === 'gandhiatharv565@gmail.com';
+  
   const ud = await getDoc(doc(db, 'users', u.uid));
-  if (!ud.exists() || ud.data().role !== 'admin') { window.location.href = 'index.html'; return; }
-  document.getElementById('userName').textContent = ud.data().displayName || 'Admin';
-  document.getElementById('userAvatar').textContent = (ud.data().displayName || 'A')[0].toUpperCase();
+  if (!isOwner && (!ud.exists() || ud.data().role !== 'admin')) { 
+    window.location.href = 'index.html'; 
+    return; 
+  }
+
+  const name = isOwner ? 'Atharva Gandhi' : (ud.data()?.displayName || 'Admin');
+  document.getElementById('userName').textContent = name;
+  document.getElementById('userAvatar').textContent = name[0].toUpperCase();
+  
   loadDashboard(); loadSchools(); loadUsers();
 });
 window.signOut = () => fbSignOut(auth).then(() => window.location.href = 'index.html');
@@ -138,21 +154,39 @@ async function loadSchools() {
 
 window.addSchool = async () => {
   const name = document.getElementById('schoolName').value.trim();
+  const city = document.getElementById('schoolCity').value.trim();
   const email = document.getElementById('schoolAdminEmail').value.trim().toLowerCase();
-  if (!name) { showToast('Enter school name', 'warning'); return; }
-  const id = generateSchoolId();
+  const password = document.getElementById('schoolAdminPass').value;
+  let customId = document.getElementById('schoolId').value.trim().toUpperCase();
+
+  if (!name || !email || !password || !city) { showToast('Please fill all fields', 'warning'); return; }
+
+  const btn = document.querySelector('#addSchoolModal .btn-primary');
+  btn.disabled = true; btn.textContent = 'Provisioning...';
+
   try {
-    await setDoc(doc(db, 'schools', id), { 
-      id, 
-      name, 
-      city: document.getElementById('schoolCity').value.trim(), 
-      adminEmail: email, 
-      createdAt: serverTimestamp(), 
-      studentCount: 0,
-      active: true
+    const cred = await createUserWithEmailAndPassword(provisionAuth, email, password);
+    const uuid = cred.user.uid;
+    const finalId = customId || generateSchoolId(uuid);
+
+    await setDoc(doc(db, 'schools', finalId), { 
+      id: finalId, name, city, adminEmail: email, createdAt: serverTimestamp(), active: true, studentCount: 0
     });
-    closeModal('addSchoolModal'); showToast('School added!', 'success'); document.getElementById('addSchoolForm').reset(); await loadSchools(); await loadDashboard();
-  } catch (e) { showToast(e.message, 'error'); }
+
+    await setDoc(doc(db, 'users', uuid), {
+      uid: uuid, email, displayName: name + ' Admin', role: 'school', schoolId: finalId, schoolName: name, createdAt: serverTimestamp()
+    });
+
+    await fbSignOut(provisionAuth);
+    closeModal('addSchoolModal'); 
+    showToast('School & Admin created!', 'success'); 
+    document.getElementById('addSchoolForm').reset(); 
+    await Promise.all([loadSchools(), loadDashboard()]);
+  } catch (e) { 
+    showToast(e.message, 'error'); 
+  } finally {
+    btn.disabled = false; btn.textContent = 'Create & Provision';
+  }
 };
 window.deleteSchool = async (id) => { if (!confirm('Delete?')) return; try { await deleteDoc(doc(db, 'schools', id)); showToast('Deleted', 'warning'); await loadSchools(); await loadDashboard(); } catch (e) { showToast(e.message, 'error'); } };
 

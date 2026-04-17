@@ -31,7 +31,13 @@
   </aside>
 
   <main class="main-content">
-    <header class="topbar"><div class="topbar-meta"><span class="topbar-title" id="topbarTitle">Student Dashboard</span><span class="topbar-subtitle">An initiative by Judiq AI</span></div><div class="topbar-actions"><button class="topbar-btn" data-theme-toggle onclick="toggleTheme()">Theme</button></div></header>
+    <header class="topbar">
+      <div style="display:flex;align-items:center;gap:12px">
+        <div class="hamburger" id="mobToggle" onclick="toggleSidebar()"><span></span><span></span><span></span></div>
+        <div class="topbar-meta"><span class="topbar-title" id="topbarTitle">Student Dashboard</span><span class="topbar-subtitle">An initiative by Judiq AI</span></div>
+      </div>
+      <div class="topbar-actions"><button class="topbar-btn" data-theme-toggle onclick="toggleTheme()">Theme</button></div>
+    </header>
     <div class="page-content">
 
       <!-- Dashboard -->
@@ -183,15 +189,26 @@ async function loadAvailableTests() {
     return;
   }
 
+  // Fetch results to filter out completed tests
+  const resultSnap = await getDocs(query(collection(db, 'results'), where('studentId', '==', uid)));
+  const attemptMap = {};
+  resultSnap.forEach(r => {
+    const tid = r.data().testId;
+    attemptMap[tid] = (attemptMap[tid] || 0) + 1;
+  });
+
   const eligibleTests = [];
   snap.forEach(d => {
     const test = d.data();
-    if (test.status !== 'published') return; // Manual filter for fallback 2
+    if (test.status !== 'published') return;
     
+    // Check attempt limit
+    const used = attemptMap[d.id] || 0;
+    const limit = test.attemptLimit || 1;
+    if (used >= limit) return; // Skip if already completed
+
     const testClass = (test.className || '').trim();
     const testDivision = (test.division || '').trim().toUpperCase();
-    
-    // Check if test is assigned to student's class/division
     const classMatches = !testClass || !className || testClass === className;
     const divisionMatches = !testDivision || !division || testDivision === division;
     
@@ -202,7 +219,7 @@ async function loadAvailableTests() {
 
   if (!eligibleTests.length) {
     container.innerHTML = '<div class="empty-state"><div class="empty-title">No tests available</div><div class="empty-desc">No published tests match your class and division yet</div></div>';
-    document.getElementById('sAvail').textContent = '0';
+    if (sAvailEl) sAvailEl.textContent = '0';
     return;
   }
 
@@ -330,90 +347,41 @@ window.submitExam = async (isAutoSub = false) => {
     examTimer = setInterval(() => {
       timeLeft--;
       updateTimerDisplay();
-      if (timeLeft <= 0) { clearInterval(examTimer); submitExam(); }
+      if (timeLeft <= 0) { clearInterval(examTimer); submitExam(true); }
     }, 1000);
     return;
   }
 
-  const questions = currentTest.questions || [];
-  let score = 0;
-  let totalMarks = 0;
-  let hasDescriptive = false;
-
-  questions.forEach((q, i) => {
-    totalMarks += q.marks || 0;
-    const ans = String(answers[i] || '').trim();
-    if (q.type === 'descriptive') { hasDescriptive = true; return; }
-    if (!ans) return;
-
-    if (q.type === 'mcq' || q.type === 'true-false') {
-      if (ans.toLowerCase() === String(q.correct).toLowerCase()) score += q.marks || 0;
-      else if (currentTest.negativeMarking) score -= Math.round((q.marks || 0) * 0.25);
-    } else if (q.type === 'multi') {
-      const studentAns = ans.toUpperCase().split(',').sort().join(',');
-      const correctAns = String(q.correct).toUpperCase().split(',').map(s => s.trim()).sort().join(',');
-      if (studentAns === correctAns) score += q.marks || 0;
-    } else if (q.type === 'numerical') {
-      if (Math.abs(parseFloat(ans) - parseFloat(q.correct)) < 0.01) score += q.marks || 0;
-    } else if (q.type === 'short') {
-      if (ans.toLowerCase() === String(q.correct).toLowerCase().trim()) score += q.marks || 0;
-    }
-  });
-
-  if (score < 0) score = 0;
-  const pct = totalMarks ? Math.round((score / totalMarks) * 100) : 0;
-  const passingMarks = currentTest.passingMarks || 35;
-  const passingPct = currentTest.totalMarks ? Math.round((passingMarks / currentTest.totalMarks) * 100) : 35;
-  const passed = pct >= passingPct;
-  const grade = getGrade(pct);
-
-  await addDoc(collection(db, 'results'), {
-    studentId: uid,
-    studentEmail: userEmail,
-    studentName: userName,
+  const resultData = {
     testId: currentTest.id,
     testName: currentTest.name,
     subject: currentTest.subject || '',
-    score,
-    totalMarks,
-    percentage: pct,
-    grade: grade.grade,
-    passed,
-    passingPct,
-    hasDescriptive,
+    studentId: uid,
+    studentName: userData.displayName,
+    studentEmail: userData.email,
+    schoolId: currentTest.schoolId || schoolId,
+    schoolName: currentTest.schoolName || schoolName,
     teacherId: currentTest.teacherId || '',
-    schoolId,
-    schoolName,
-    answers: JSON.parse(JSON.stringify(answers)),
+    totalMarks: currentTest.totalMarks || 100,
+    passingMarks: currentTest.passingMarks || 35,
+    answers: { ...answers },
+    status: 'pending',
+    isEvaluated: false,
     submittedAt: serverTimestamp()
-  });
+  };
 
-  if (passed) {
-    await addDoc(collection(db, 'certificates'), {
-      studentId: uid,
-      studentName: userName,
-      studentEmail: userEmail,
-      testName: currentTest.name,
-      subject: currentTest.subject || '',
-      score,
-      totalMarks,
-      percentage: pct,
-      grade: grade.grade,
-      className: currentTest.className || className,
-      division: currentTest.division || division,
-      schoolName,
-      certId: 'CERT-' + generateId(),
-      createdAt: serverTimestamp()
-    });
+  try {
+    const docRef = await addDoc(collection(db, 'results'), resultData);
+    
+    currentTest = null;
+    answers = {};
+    showSection('secHistory', 'navHistory');
+    showToast('Test submitted! Results will be available after teacher review.', 'success');
+    await loadAll();
+  } catch (e) {
+    console.error(e);
+    showToast('Submission failed: ' + e.message, 'error');
   }
-
-  document.getElementById('sidebarMain').style.pointerEvents = '';
-  document.getElementById('sidebarMain').style.opacity = '1';
-  currentTest = null;
-  showSection('secResults', 'navResults');
-  showToast(passed ? 'Congratulations! You passed with ' + pct + '%' : 'Score: ' + pct + '%', passed ? 'success' : 'info', 5000);
-  if (hasDescriptive) showToast('Descriptive answers need manual grading by teacher.', 'info', 5000);
-  await loadAll();
 };
 
 async function loadMyResults() {
@@ -444,16 +412,29 @@ async function loadMyResults() {
 
   snap.forEach(d => {
     const r = d.data();
-    total++;
-    sum += r.percentage || 0;
-    best = Math.max(best, r.percentage || 0);
-    scores.push(r.percentage || 0);
-    labels.push(r.testName || ('Test ' + total));
-    const subject = r.subject || 'General';
-    if (!subjects[subject]) subjects[subject] = [];
-    subjects[subject].push(r.percentage || 0);
-    const grade = getGrade(r.percentage || 0);
-    tbody.innerHTML += '<tr><td>' + (r.testName || '-') + '</td><td>' + (r.subject || '-') + '</td><td><strong>' + (r.score || 0) + '/' + (r.totalMarks || 0) + '</strong></td><td style="color:' + grade.color + ';font-weight:700">' + (r.percentage || 0) + '%</td><td><span class="badge ' + (r.passed ? 'badge-success' : 'badge-danger') + '">' + grade.grade + '</span></td><td><span class="badge ' + (r.passed ? 'badge-success' : 'badge-danger') + '">' + (r.passed ? 'PASS' : 'FAIL') + '</span></td><td>' + formatDate(r.submittedAt) + '</td></tr>';
+    const isPending = r.status === 'pending';
+    const grade = isPending ? { grade: '...', color: '#94a3b8' } : getGrade(r.percentage || 0);
+    
+    if (!isPending) {
+      total++;
+      sum += r.percentage || 0;
+      best = Math.max(best, r.percentage || 0);
+      scores.push(r.percentage || 0);
+      labels.push(r.testName || ('Test ' + total));
+      const subject = r.subject || 'General';
+      if (!subjects[subject]) subjects[subject] = [];
+      subjects[subject].push(r.percentage || 0);
+    }
+
+    tbody.innerHTML += `<tr>
+      <td>${r.testName || 'Test'}</td>
+      <td>${r.subject || 'General'}</td>
+      <td><strong>${isPending ? '—' : (r.score || 0) + '/' + (r.totalMarks || 0)}</strong></td>
+      <td><span style="color:${grade.color};font-weight:700">${isPending ? '—' : (r.percentage || 0) + '%'}</span></td>
+      <td><span class="badge" style="background:${grade.color};color:white">${grade.grade}</span></td>
+      <td><span class="badge ${isPending ? 'badge-warning' : 'badge-success'}">${isPending ? 'Evaluating' : (r.status || 'Graded').toUpperCase()}</span></td>
+      <td>${formatDate(r.submittedAt)}</td>
+    </tr>`;
   });
 
   const avg = total ? Math.round(sum / total) : 0;
