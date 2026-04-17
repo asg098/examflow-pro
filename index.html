@@ -570,7 +570,13 @@ window.handleForgot = async (e) => {
 
 function redirectToRole(role) {
   const pages = { admin: 'admin.html', school: 'school.html', teacher: 'teacher.html', student: 'student.html', parent: 'parent.html' };
-  window.location.href = pages[role] || 'teacher.html';
+  const target = pages[role];
+  if (target) {
+    window.location.href = target;
+  } else {
+    showToast('Unauthorized role. Please contact support.', 'error');
+    fbSignOut(auth);
+  }
 }
 
 function getFriendlyError(code) {

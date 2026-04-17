@@ -43,6 +43,11 @@ window.getGrade = (pct) => {
 
 window.generateId = () => Math.random().toString(36).substr(2, 9).toUpperCase();
 
+window.generateSchoolId = (uid) => {
+  if (!uid) return 'SCH_' + window.generateId();
+  return 'SCH_' + String(uid).substring(0, 10).toUpperCase();
+};
+
 // ─── Data normalization helpers ───
 window.normalizeEmail = (value) => String(value || '').trim().toLowerCase();
 window.normalizeRole = (value) => String(value || '').trim().toLowerCase();
@@ -103,12 +108,23 @@ window.activateNav = (id) => {
   if (el) el.classList.add('active');
 };
 
+window.toggleSidebar = () => {
+  const sb = document.querySelector('.sidebar');
+  if (sb) sb.classList.toggle('open');
+};
+
+window.closeSidebar = () => {
+  const sb = document.querySelector('.sidebar');
+  if (sb) sb.classList.remove('open');
+};
+
 // ─── Section Switcher ───
 window.showSection = (sectionId, navId) => {
   document.querySelectorAll('.section').forEach(s => s.classList.add('hidden'));
   const sec = document.getElementById(sectionId);
   if (sec) { sec.classList.remove('hidden'); sec.classList.add('fade-in'); }
   if (navId) activateNav(navId);
+  window.closeSidebar(); // Close on mobile navigation
 };
 
 // ─── Modal Helpers ───

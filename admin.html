@@ -92,24 +92,34 @@ const provisionApp = initializeApp(firebaseConfig, "provision");
 const provisionAuth = getAuth(provisionApp);
 
 onAuthStateChanged(auth, async (u) => {
-  document.getElementById('pageLoader').style.opacity = '0';
-  setTimeout(() => document.getElementById('pageLoader').style.display = 'none', 500);
-  if (!u) { window.location.href = 'index.html'; return; }
-
-  // Secure Owner Bypass: Atharva Sameer Gandhi
-  const isOwner = u.email === 'gandhiatharv565@gmail.com';
-  
-  const ud = await getDoc(doc(db, 'users', u.uid));
-  if (!isOwner && (!ud.exists() || ud.data().role !== 'admin')) { 
+  if (!u) {
+    if (document.getElementById('pageLoader')) document.getElementById('pageLoader').style.display = 'none';
     window.location.href = 'index.html'; 
     return; 
   }
+
+  try {
+    const isOwner = u.email === 'gandhiatharv565@gmail.com';
+    const ud = await getDoc(doc(db, 'users', u.uid));
+    
+    if (!isOwner && (!ud.exists() || ud.data().role !== 'admin')) { 
+      window.location.href = 'index.html'; 
+      return; 
+    }
+
+    // Hide loader only after verification
+    const pl = document.getElementById('pageLoader');
+    if (pl) {
+      pl.style.opacity = '0';
+      setTimeout(() => pl.style.display = 'none', 500);
+    }
 
   const name = isOwner ? 'Atharva Gandhi' : (ud.data()?.displayName || 'Admin');
   document.getElementById('userName').textContent = name;
   document.getElementById('userAvatar').textContent = name[0].toUpperCase();
   
   loadDashboard(); loadSchools(); loadUsers();
+  } catch (e) { console.error('Admin init error:', e); }
 });
 window.signOut = () => fbSignOut(auth).then(() => window.location.href = 'index.html');
 

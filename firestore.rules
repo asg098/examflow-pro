@@ -69,12 +69,12 @@ service cloud.firestore {
 
     // Users: Critical protection against privilege escalation
     match /users/{userId} {
-      // Direct access for self-profile to prevent circular rule dependencies
+      // Identity Priority: Users can ALWAYS read their own profile without recursive checks
       allow read: if signedIn() && (request.auth.uid == userId || isAdmin());
       
-      // Access for school/parent roles (uses getUserData for the requester)
+      // Secondary Access: Allow schools/teachers to see their members, or parents to see children
       allow read: if signedIn() && (
-        schoolMember(resource.data.schoolId) ||
+        (resource.data.schoolId != null && resource.data.schoolId == getUserData().schoolId) ||
         (currentRole() == 'parent' && getUserData().childEmail == resource.data.email)
       );
 
@@ -82,7 +82,7 @@ service cloud.firestore {
       allow create: if signedIn() && (
         (request.auth.uid == userId && request.resource.data.role in ['student', 'parent', 'school']) ||
         isAdmin() ||
-        managesSchool(request.resource.data.schoolId)
+        (getUserData().role == 'school' && request.resource.data.schoolId == getUserData().schoolId)
       );
 
       // Update: Prevent role escalation
@@ -90,10 +90,10 @@ service cloud.firestore {
         (request.auth.uid == userId && 
          !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'uid', 'schoolId'])) ||
         isAdmin() ||
-        managesSchool(resource.data.schoolId)
+        (getUserData().role == 'school' && resource.data.schoolId == getUserData().schoolId)
       );
 
-      allow delete: if isAdmin() || managesSchool(resource.data.schoolId);
+      allow delete: if isAdmin() || (getUserData().role == 'school' && resource.data.schoolId == getUserData().schoolId);
     }
 
     // Teachers mapping
