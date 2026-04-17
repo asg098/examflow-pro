@@ -106,10 +106,23 @@
 <div class="modal-overlay" id="addClassModal"><div class="modal"><div class="modal-header"><h3 class="modal-title">Add Class</h3><button class="modal-close" onclick="closeModal('addClassModal')">✕</button></div><div class="modal-body"><form class="auth-form" id="addClassForm"><div class="form-group"><label class="form-label">Class Name (e.g. 10th, 9th)</label><input class="form-control" id="className" required/></div><div class="form-group"><label class="form-label">Divisions (comma separated: A,B,C)</label><input class="form-control" id="classDivisions" placeholder="A,B,C" required/></div></form></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal('addClassModal')">Cancel</button><button class="btn btn-primary" onclick="addClass()">Add Class</button></div></div></div>
 
 <!-- Add Teacher Modal -->
-<div class="modal-overlay" id="addTeacherModal"><div class="modal"><div class="modal-header"><h3 class="modal-title">Assign Teacher</h3><button class="modal-close" onclick="closeModal('addTeacherModal')">✕</button></div><div class="modal-body"><div class="auth-form" id="addTeacherForm"><div class="form-group"><label class="form-label">Select Registered Teacher</label><select class="form-control" id="teacherEmailSelect"><option value="">Loading teachers...</option></select></div><div class="form-group"><label class="form-label">Class</label><select class="form-control" id="teacherClass"></select></div><div class="form-group"><label class="form-label">Division</label><input class="form-control" id="teacherDiv" placeholder="A"/></div><div class="form-group"><label class="form-label">Subject</label><input class="form-control" id="teacherSubject" placeholder="Mathematics"/></div></div></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal('addTeacherModal')">Cancel</button><button class="btn btn-primary" onclick="assignTeacher()">Assign Teacher</button></div></div></div>
+<div class="modal-overlay" id="addTeacherModal"><div class="modal"><div class="modal-header"><h3 class="modal-title">Assign Teacher</h3><button class="modal-close" onclick="closeModal('addTeacherModal')">✕</button></div><div class="modal-body"><form class="auth-form" id="addTeacherForm"><div class="form-group"><label class="form-label">Select Registered Teacher</label><select class="form-control" id="teacherEmailSelect"><option value="">Loading teachers...</option></select></div><div class="form-group"><label class="form-label">Class</label><select class="form-control" id="teacherClass"></select></div><div class="form-group"><label class="form-label">Division</label><input class="form-control" id="teacherDiv" placeholder="A"/></div><div class="form-group"><label class="form-label">Subject</label><input class="form-control" id="teacherSubject" placeholder="Mathematics"/></div></form></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal('addTeacherModal')">Cancel</button><button class="btn btn-primary" onclick="assignTeacher()">Assign Teacher</button></div></div></div>
 
 <!-- Add Student Modal -->
-<div class="modal-overlay" id="addStudentModal"><div class="modal"><div class="modal-header"><h3 class="modal-title">Add Student</h3><button class="modal-close" onclick="closeModal('addStudentModal')">✕</button></div><div class="modal-body"><div class="auth-form" id="addStudentForm"><div class="form-group"><label class="form-label">Student Name</label><input class="form-control" id="sName" placeholder="Full Name" required/></div><div class="form-group"><label class="form-label">Student Email</label><input type="email" class="form-control" id="sEmail" placeholder="student@example.com" required/></div><div class="form-group"><label class="form-label">Temporary Password</label><input class="form-control" id="sPassword" placeholder="Min 6 characters" minlength="6" required/></div><div class="grid g-2"><div class="form-group"><label class="form-label">Class</label><select class="form-control" id="sClass" onchange="updateStudentDivisions()"></select></div><div class="form-group"><label class="form-label">Division</label><select class="form-control" id="sDiv"></select></div></div></div></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal('addStudentModal')">Cancel</button><button class="btn btn-primary" onclick="createStudent()">Create Student Account</button></div></div></div>
+<div class="modal-overlay" id="addStudentModal"><div class="modal"><div class="modal-header"><h3 class="modal-title">Add Student</h3><button class="modal-close" onclick="closeModal('addStudentModal')">✕</button></div><div class="modal-body"><form class="auth-form" id="addStudentForm"><div class="form-group"><label class="form-label">Student Name</label><input class="form-control" id="sName" placeholder="Full Name" required/></div><div class="form-group"><label class="form-label">Student Email</label><input type="email" class="form-control" id="sEmail" placeholder="student@example.com" required/></div><div class="form-group"><label class="form-label">Temporary Password</label><input class="form-control" id="sPassword" placeholder="Min 6 characters" minlength="6" required/></div><div class="grid g-2"><div class="form-group"><label class="form-label">Class</label><select class="form-control" id="sClass" onchange="updateStudentDivisions()"></select></div><div class="form-group"><label class="form-label">Division</label><select class="form-control" id="sDiv"></select></div></div></form></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal('addStudentModal')">Cancel</button><button class="btn btn-primary" onclick="createStudent()">Create Student Account</button></div></div></div>
+
+<!-- Ultra-Resilient Loader Bypass: Guarantees reveal even if script deps are slow -->
+<script>
+  (function() {
+    const hide = () => {
+      const l = document.getElementById('pageLoader');
+      if (l) { l.style.opacity = '0'; setTimeout(() => l.style.display = 'none', 400); }
+    };
+    // Reveal immediately if we've been here too long
+    setTimeout(hide, 2000);
+    window.hideLoader = hide;
+  })();
+</script>
 
 <script src="js/shared.js"></script>
 <script type="module">
@@ -126,23 +139,44 @@ const provisionAuth = getAuth(provisionApp);
 let schoolId = '';
 let schoolName = '';
 
+// ⚡ Immediate loader handling to prevent "stuck" screen
+const hideLoader = () => {
+  const loader = document.getElementById('pageLoader');
+  if (loader) {
+    loader.style.opacity = '0';
+    setTimeout(() => loader.style.display = 'none', 500);
+  }
+};
+
+// Fail-safe reveal
+setTimeout(hideLoader, 3000);
+
 onAuthStateChanged(auth, async (u) => {
-  document.getElementById('pageLoader').style.opacity = '0';
-  setTimeout(() => document.getElementById('pageLoader').style.display = 'none', 500);
-  if (!u) { window.location.href = 'index.html'; return; }
+  if (!u) { 
+    hideLoader();
+    window.location.href = 'index.html'; 
+    return; 
+  }
 
   try {
     const userSnap = await getDoc(doc(db, 'users', u.uid));
-    if (!userSnap.exists() || userSnap.data().role !== 'school') { window.location.href = 'index.html'; return; }
+    if (!userSnap.exists() || userSnap.data().role !== 'school') { 
+      hideLoader();
+      window.location.href = 'index.html'; 
+      return; 
+    }
+    
+    // Continue loading data...
     const userData = userSnap.data();
-
     schoolId = userData.schoolId || '';
     schoolName = userData.schoolName || '';
-
+    
     if (!schoolId && userData.role === 'school') {
-      // Fallback for older accounts or deterministic ID
       schoolId = 'SCH_' + u.uid.substring(0, 10).toUpperCase();
     }
+    
+    // Finalize UI and hide loader
+    hideLoader(); 
 
     document.getElementById('userName').textContent = userData.displayName || 'School Admin';
     document.getElementById('userAvatar').textContent = (userData.displayName || 'S')[0].toUpperCase();
@@ -156,7 +190,8 @@ onAuthStateChanged(auth, async (u) => {
       document.getElementById('brandLogo').value = schoolData.logo || '';
       document.getElementById('brandSig').value = schoolData.signature || '';
     } else {
-      document.getElementById('brandName').value = schoolName;
+      // Fallback if branding doc isn't created yet - use name from User doc
+      document.getElementById('brandName').value = schoolName || '';
     }
 
     document.getElementById('sidebarSchoolName').textContent = schoolName || 'ExamFlow';
@@ -166,7 +201,8 @@ onAuthStateChanged(auth, async (u) => {
     await loadAll();
   } catch (e) {
     console.error('school auth:', e);
-    showToast('Could not load school dashboard.', 'error');
+    hideLoader(); // 🔥 Safety: Hide loader even if auth check fails
+    showToast('Could not load school dashboard permissions. Please ensure your account is provisioned.', 'error');
   }
 });
 
@@ -208,40 +244,6 @@ async function loadDashStats() {
   document.getElementById('statPending').textContent = pendingCount;
 }
 
-async function loadPerformance() {
-  const snap = await getDocs(query(collection(db, 'results'), where('schoolId', '==', schoolId)));
-  if (snap.empty) {
-    document.getElementById('perfAvg').textContent = '-';
-    document.getElementById('perfPassRate').textContent = '-';
-    document.getElementById('perfTestCount').textContent = '0';
-    document.getElementById('perfRing').style.setProperty('--pct', '0%');
-    initCharts({}, 0, 0);
-    return;
-  }
-
-  let total = 0;
-  let sum = 0;
-  let passed = 0;
-  const testScores = {};
-
-  snap.forEach(d => {
-    const result = d.data();
-    total++;
-    sum += result.percentage || 0;
-    if (result.passed) passed++;
-    const key = result.testName || 'Test';
-    if (!testScores[key]) testScores[key] = [];
-    testScores[key].push(result.percentage || 0);
-  });
-
-  const avg = total ? Math.round(sum / total) : 0;
-  const passRate = total ? Math.round((passed / total) * 100) : 0;
-  document.getElementById('perfAvg').textContent = avg + '%';
-  document.getElementById('perfPassRate').textContent = passRate + '%';
-  document.getElementById('perfTestCount').textContent = String(Object.keys(testScores).length);
-  document.getElementById('perfRing').style.setProperty('--pct', avg + '%');
-  initCharts(testScores, passed, total - passed);
-}
 
 function initCharts(testScores, passCount, failCount) {
   const labels = Object.keys(testScores).slice(-6);
@@ -585,12 +587,20 @@ window.saveBranding = async (e) => {
   const city = document.getElementById('brandCity').value.trim();
   const logo = document.getElementById('brandLogo').value.trim();
   const signature = document.getElementById('brandSig').value.trim();
-  await updateDoc(doc(db, 'schools', schoolId), { name, city, logo, signature });
-  schoolName = name || schoolName;
-  document.getElementById('sidebarSchoolName').textContent = schoolName;
-  document.getElementById('userSchoolName').textContent = schoolName;
-  document.getElementById('topbarTitle').textContent = schoolName;
-  showToast('Branding saved!', 'success');
+  try {
+    await updateDoc(doc(db, 'schools', schoolId), { name, city, logo, signature });
+    schoolName = name || schoolName;
+    document.getElementById('sidebarSchoolName').textContent = schoolName;
+    document.getElementById('userSchoolName').textContent = schoolName;
+    document.getElementById('topbarTitle').textContent = schoolName;
+    showToast('Branding saved!', 'success');
+  } catch (err) {
+    showToast('Error saving branding: ' + err.message, 'error');
+  }
+};
+</script>
+</body>
+</html>
 
 
 

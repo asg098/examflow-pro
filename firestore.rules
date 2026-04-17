@@ -53,32 +53,33 @@ service cloud.firestore {
     // --- RULES ---
 
     // Schools: Public to read names, but only admins create. Admins/SchoolAdmins edit.
+    // Schools: Public to read names (for signup discovery), but only admins create.
     match /schools/{schoolId} {
-      allow read: if signedIn();
+      allow read: if true; // Allow new users to find their school before signing up
       allow create: if isAdmin(); // Only platform admins create schools
       allow update, delete: if managesSchool(schoolId);
     }
 
-    // Classes: School-level management
+    // Classes: Public to read (for signup), school management only for edits
     match /classes/{classId} {
-      allow read: if signedIn() && schoolMember(resource.data.schoolId);
+      allow read: if true; // Allow new users to see available classes during signup
       allow create: if managesSchool(request.resource.data.schoolId);
       allow update, delete: if managesSchool(resource.data.schoolId);
     }
 
     // Users: Critical protection against privilege escalation
     match /users/{userId} {
-      // Allow read if it's your own profile, you're an admin, or you're a school head.
+      // Direct access for self-profile to prevent circular rule dependencies
+      allow read: if signedIn() && (request.auth.uid == userId || isAdmin());
+      
+      // Access for school/parent roles (uses getUserData for the requester)
       allow read: if signedIn() && (
-        request.auth.uid == userId ||
-        isAdmin() ||
         schoolMember(resource.data.schoolId) ||
         (currentRole() == 'parent' && getUserData().childEmail == resource.data.email)
       );
 
       // Create: Users can create their own doc on signup, or admins/schools can create.
       allow create: if signedIn() && (
-        // Self-creation: must not set an elevated role
         (request.auth.uid == userId && request.resource.data.role in ['student', 'parent', 'school']) ||
         isAdmin() ||
         managesSchool(request.resource.data.schoolId)
@@ -86,7 +87,6 @@ service cloud.firestore {
 
       // Update: Prevent role escalation
       allow update: if signedIn() && (
-        // Self-update: Cannot change own role, uid, or schoolId
         (request.auth.uid == userId && 
          !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'uid', 'schoolId'])) ||
         isAdmin() ||

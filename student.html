@@ -252,6 +252,16 @@ window.startTest = async (testId) => {
 
   currentTest = { id: testId, ...testData };
   answers = {};
+  
+  // Restore draft if exists
+  const draft = localStorage.getItem(`examflow_draft_${testId}`);
+  if (draft) {
+    try {
+      answers = JSON.parse(draft);
+      showToast('Restored your previous answers.', 'info');
+    } catch (e) { console.error('Draft restore failed', e); }
+  }
+
   const questions = Array.isArray(currentTest.questions) ? [...currentTest.questions] : [];
   if (!questions.length) { currentTest = null; showToast('This test has no questions', 'error'); return; }
 
@@ -281,21 +291,26 @@ window.startTest = async (testId) => {
     if (q.type === 'mcq') {
       h += (q.options || []).map((opt, j) => {
         if (!String(opt || '').trim()) return '';
-        return '<label style="display:flex;align-items:center;gap:10px;padding:12px 16px;border-radius:10px;border:1px solid rgba(255,255,255,0.06);margin-bottom:6px;cursor:pointer"><input type="radio" name="q' + i + '" value="' + String.fromCharCode(65 + j) + '" onchange="setAnswer(' + i + ',this.value)" style="accent-color:#6366f1"/><span>' + String.fromCharCode(65 + j) + '. ' + opt + '</span></label>';
+        const val = String.fromCharCode(65 + j);
+        const isChecked = answers[i] === val;
+        return '<label style="display:flex;align-items:center;gap:10px;padding:12px 16px;border-radius:10px;border:1px solid rgba(255,255,255,0.06);margin-bottom:6px;cursor:pointer"><input type="radio" name="q' + i + '" value="' + val + '" ' + (isChecked ? 'checked' : '') + ' onchange="setAnswer(' + i + ',this.value)" style="accent-color:#6366f1"/><span>' + val + '. ' + opt + '</span></label>';
       }).join('');
     } else if (q.type === 'multi') {
       h += (q.options || []).map((opt, j) => {
         if (!String(opt || '').trim()) return '';
-        return '<label style="display:flex;align-items:center;gap:10px;padding:12px 16px;border-radius:10px;border:1px solid rgba(255,255,255,0.06);margin-bottom:6px;cursor:pointer"><input type="checkbox" class="mq' + i + '" value="' + String.fromCharCode(65 + j) + '" onchange="updateMulti(' + i + ')" style="accent-color:#6366f1"/><span>' + String.fromCharCode(65 + j) + '. ' + opt + '</span></label>';
+        const val = String.fromCharCode(65 + j);
+        const isChecked = (answers[i] || '').split(',').includes(val);
+        return '<label style="display:flex;align-items:center;gap:10px;padding:12px 16px;border-radius:10px;border:1px solid rgba(255,255,255,0.06);margin-bottom:6px;cursor:pointer"><input type="checkbox" class="mq' + i + '" value="' + val + '" ' + (isChecked ? 'checked' : '') + ' onchange="updateMulti(' + i + ')" style="accent-color:#6366f1"/><span>' + val + '. ' + opt + '</span></label>';
       }).join('');
     } else if (q.type === 'true-false') {
-      h += '<div style="display:flex;gap:12px"><label style="display:flex;gap:8px;padding:12px 24px;border-radius:10px;border:1px solid rgba(255,255,255,0.06);cursor:pointer"><input type="radio" name="q' + i + '" value="true" onchange="setAnswer(' + i + ',\'true\')" style="accent-color:#6366f1"/> True</label><label style="display:flex;gap:8px;padding:12px 24px;border-radius:10px;border:1px solid rgba(255,255,255,0.06);cursor:pointer"><input type="radio" name="q' + i + '" value="false" onchange="setAnswer(' + i + ',\'false\')" style="accent-color:#6366f1"/> False</label></div>';
+      const cur = answers[i] || '';
+      h += '<div style="display:flex;gap:12px"><label style="display:flex;gap:8px;padding:12px 24px;border-radius:10px;border:1px solid rgba(255,255,255,0.06);cursor:pointer"><input type="radio" name="q' + i + '" value="true" ' + (cur === 'true' ? 'checked' : '') + ' onchange="setAnswer(' + i + ',\'true\')" style="accent-color:#6366f1"/> True</label><label style="display:flex;gap:8px;padding:12px 24px;border-radius:10px;border:1px solid rgba(255,255,255,0.06);cursor:pointer"><input type="radio" name="q' + i + '" value="false" ' + (cur === 'false' ? 'checked' : '') + ' onchange="setAnswer(' + i + ',\'false\')" style="accent-color:#6366f1"/> False</label></div>';
     } else if (q.type === 'numerical') {
-      h += '<input type="number" step="any" class="form-control" style="max-width:250px" placeholder="Enter your answer" oninput="setAnswer(' + i + ',this.value)"/>';
+      h += '<input type="number" step="any" class="form-control" style="max-width:250px" placeholder="Enter your answer" value="' + (answers[i] || '') + '" oninput="setAnswer(' + i + ',this.value)"/>';
     } else if (q.type === 'short') {
-      h += '<input class="form-control" style="max-width:450px" placeholder="Type your answer" oninput="setAnswer(' + i + ',this.value)"/>';
+      h += '<input class="form-control" style="max-width:450px" placeholder="Type your answer" value="' + (answers[i] || '') + '" oninput="setAnswer(' + i + ',this.value)"/>';
     } else if (q.type === 'descriptive') {
-      h += '<textarea class="form-control" rows="6" placeholder="Write your detailed answer..." oninput="setAnswer(' + i + ',this.value)"></textarea>';
+      h += '<textarea class="form-control" rows="6" placeholder="Write your detailed answer..." oninput="setAnswer(' + i + ',this.value)">' + (answers[i] || '') + '</textarea>';
     }
 
     return h + '</div></div>';
@@ -318,11 +333,19 @@ window.startTest = async (testId) => {
 window.setAnswer = (idx, val) => {
   answers[idx] = val;
   document.getElementById('answeredCount').textContent = Object.keys(answers).filter(key => answers[key]).length;
+  // State persistence
+  if (currentTest) {
+    localStorage.setItem(`examflow_draft_${currentTest.id}`, JSON.stringify(answers));
+  }
 };
 
 window.updateMulti = (idx) => {
   answers[idx] = Array.from(document.querySelectorAll('.mq' + idx + ':checked')).map(c => c.value).sort().join(',');
   document.getElementById('answeredCount').textContent = Object.keys(answers).filter(key => answers[key]).length;
+  // State persistence
+  if (currentTest) {
+    localStorage.setItem(`examflow_draft_${currentTest.id}`, JSON.stringify(answers));
+  }
 };
 
 function updateTimerDisplay() {
@@ -372,6 +395,9 @@ window.submitExam = async (isAutoSub = false) => {
 
   try {
     const docRef = await addDoc(collection(db, 'results'), resultData);
+    
+    // Clear draft after successful submission
+    localStorage.removeItem(`examflow_draft_${currentTest.id}`);
     
     currentTest = null;
     answers = {};
