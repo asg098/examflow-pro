@@ -16,38 +16,21 @@ service cloud.firestore {
       return exists(/databases/$(database)/documents/users/$(request.auth.uid));
     }
 
-    // --- ROLE HELPERS ---
-    // Note: We use getUserData() carefully to stay under the 10 get() call limit.
-    function currentRole() {
-      return hasUserDoc() ? getUserData().role : null;
-    }
-    
+    // --- ROLE & SCHOOL HELPERS ---
     function isAdmin() {
-      // Secure owner identity: Atharva Sameer Gandhi
       return signedIn() && request.auth.token.email == 'gandhiatharv565@gmail.com';
     }
 
-    // --- SCHOOL HELPERS ---
-    function userSchoolId() {
-      return hasUserDoc() ? getUserData().schoolId : null;
-    }
-
-    function sameSchool(schoolId) {
-      return signedIn() && schoolId != null && userSchoolId() == schoolId;
-    }
-
     function managesSchool(schoolId) {
-      let role = currentRole();
-      return isAdmin() || (role == 'school' && sameSchool(schoolId));
+      return signedIn() && (isAdmin() || (getUserData().role == 'school' && getUserData().schoolId == schoolId));
     }
 
     function teachesSchool(schoolId) {
-      return currentRole() == 'teacher' && sameSchool(schoolId);
+      return signedIn() && (getUserData().role == 'teacher' && getUserData().schoolId == schoolId);
     }
 
     function schoolMember(schoolId) {
-      let role = currentRole();
-      return role != null && (isAdmin() || sameSchool(schoolId));
+      return signedIn() && (isAdmin() || (getUserData().schoolId == schoolId && (getUserData().role == 'school' || getUserData().role == 'teacher' || getUserData().role == 'student')));
     }
 
     // --- RULES ---
@@ -72,12 +55,12 @@ service cloud.firestore {
       // Identity Priority: Users can ALWAYS read their own profile without recursive checks
       allow read: if signedIn() && (request.auth.uid == userId || isAdmin());
       
-      // Secondary Access: Allow schools/teachers to see their members, or parents to see children
+      // Secondary Access: Allow schools/teachers/students to see their members
       allow read: if signedIn() && (
-        (resource.data.schoolId != null && resource.data.schoolId == getUserData().schoolId) ||
-        (currentRole() == 'parent' && getUserData().childEmail == resource.data.email)
+        isAdmin() ||
+        schoolMember(resource.data.schoolId) ||
+        (getUserData().role == 'parent' && getUserData().childEmail == resource.data.email)
       );
-
       // Create: Users can create their own doc on signup, or admins/schools can create.
       allow create: if signedIn() && (
         (request.auth.uid == userId && request.resource.data.role in ['student', 'teacher', 'parent', 'school']) ||
@@ -107,7 +90,10 @@ service cloud.firestore {
 
     // Tests & Questions
     match /tests/{testId} {
-      allow read: if signedIn() && schoolMember(resource.data.schoolId);
+      allow read: if signedIn() && (
+        schoolMember(resource.data.schoolId) ||
+        resource.data.teacherId == request.auth.uid
+      );
       
       allow create: if signedIn() && (
         isAdmin() ||
@@ -137,10 +123,10 @@ service cloud.firestore {
     match /results/{resultId} {
       allow read: if signedIn() && (
         isAdmin() ||
+        schoolMember(resource.data.schoolId) ||
         request.auth.uid == resource.data.studentId ||
         request.auth.uid == resource.data.teacherId ||
-        managesSchool(resource.data.schoolId) ||
-        (currentRole() == 'parent' && getUserData().childEmail == resource.data.studentEmail)
+        (getUserData().role == 'parent' && getUserData().childEmail == resource.data.studentEmail)
       );
 
       allow create: if signedIn() && (
@@ -162,7 +148,8 @@ service cloud.firestore {
     match /questionBank/{questionId} {
       allow read: if signedIn() && (
         isAdmin() ||
-        schoolMember(resource.data.schoolId)
+        schoolMember(resource.data.schoolId) ||
+        resource.data.teacherId == request.auth.uid
       );
       allow create, update, delete: if signedIn() && (
         isAdmin() ||

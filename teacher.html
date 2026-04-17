@@ -495,7 +495,7 @@
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
     import { getAuth, onAuthStateChanged, signOut as fbSignOut, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-    import { getFirestore, collection, getDocs, doc, getDoc, setDoc, addDoc, deleteDoc, query, where, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    import { getFirestore, collection, getDocs, doc, getDoc, setDoc, addDoc, updateDoc, deleteDoc, query, where, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
     const firebaseConfig = { apiKey: "AIzaSyCbSZRvUsFuepNW8W2D5x-5EwHEE_O2UdE", authDomain: "aixynztestseries-fc5da.firebaseapp.com", projectId: "aixynztestseries-fc5da", storageBucket: "aixynztestseries-fc5da.firebasestorage.app", messagingSenderId: "354795848617", appId: "1:354795848617:web:ab50b9095256b6febbfab8" };
     const app = initializeApp(firebaseConfig);
@@ -613,131 +613,6 @@
         select.innerHTML += '<option value="' + className + '"' + (className === myClass ? ' selected' : '') + '>' + className + '</option>';
       });
       if (!document.getElementById('testDiv').value && myDiv) document.getElementById('testDiv').value = myDiv;
-    }
-
-    async function loadDashStats() {
-      const [studentSnap, testSnap, resultSnap] = await Promise.all([
-        getDocs(query(collection(db, 'users'), where('schoolId', '==', schoolId), where('role', '==', 'student'))),
-        getDocs(query(collection(db, 'tests'), where('teacherId', '==', uid))),
-        getDocs(query(collection(db, 'results'), where('teacherId', '==', uid), where('status', '==', 'graded')))
-      ]);
-
-      // Manual filter for class/division in stats if needed
-      let myStudentCount = 0;
-      studentSnap.forEach(d => {
-        const s = d.data();
-        if (myClass && s.className !== myClass) return;
-        if (myDiv && s.division !== myDiv) return;
-        myStudentCount++;
-      });
-
-      document.getElementById('sMyStudents').textContent = myStudentCount;
-      document.getElementById('sMyTests').textContent = testSnap.size;
-
-      let total = 0;
-      let sum = 0;
-      let passed = 0;
-      let highest = 0;
-      let lowest = 100;
-      const testScores = {};
-      const scoreBuckets = [0, 0, 0, 0, 0];
-      const subjectAccuracy = {};
-      const studentScores = {};
-
-      resultSnap.forEach(d => {
-        const r = d.data();
-        if (r.isEvaluated === false) return;
-        const pct = r.percentage || 0;
-        total++;
-        sum += pct;
-        if (r.passed) passed++;
-        if (pct > highest) highest = pct;
-        if (pct < lowest) lowest = pct;
-        if (pct < 20) scoreBuckets[0]++;
-        else if (pct < 40) scoreBuckets[1]++;
-        else if (pct < 60) scoreBuckets[2]++;
-        else if (pct < 80) scoreBuckets[3]++;
-        else scoreBuckets[4]++;
-
-        const testName = r.testName || 'Test';
-        if (!testScores[testName]) testScores[testName] = [];
-        testScores[testName].push(pct);
-
-        const subject = r.subject || 'General';
-        if (!subjectAccuracy[subject]) subjectAccuracy[subject] = [];
-        subjectAccuracy[subject].push(pct);
-
-        const studentId = r.studentId || r.studentEmail || 'unknown';
-        if (!studentScores[studentId]) studentScores[studentId] = { name: r.studentName || 'Student', scores: [] };
-        studentScores[studentId].scores.push(pct);
-      });
-
-      const avg = total ? Math.round(sum / total) : 0;
-      const passRate = total ? Math.round((passed / total) * 100) : 0;
-      // Weak student detection
-      const studentPerf = {}; // email -> { name, scores: [] }
-      resultSnap.forEach(d => {
-        const r = d.data();
-        if (!r.studentEmail || !r.isEvaluated) return;
-        if (!studentPerf[r.studentEmail]) studentPerf[r.studentEmail] = { name: r.studentName, scores: [] };
-        studentPerf[r.studentEmail].scores.push(r.percentage || 0);
-      });
-
-      const weakList = document.getElementById('weakList');
-      if (weakList) {
-        const sortedWeak = Object.entries(studentPerf)
-          .map(([email, data]) => ({ email, name: data.name, avg: Math.round(data.scores.reduce((a, b) => a + b, 0) / data.scores.length) }))
-          .filter(s => s.avg < 40)
-          .sort((a, b) => a.avg - b.avg);
-
-        if (sortedWeak.length) {
-          weakList.innerHTML = sortedWeak.map(s => `
-        <div class="list-item" style="padding:12px;display:flex;justify-content:space-between;align-items:center;background:rgba(239,68,68,0.05);border:1px solid rgba(239,68,68,0.1);border-radius:10px;margin-bottom:8px">
-          <div><div style="font-weight:600;font-size:0.9rem">${s.name}</div><div style="font-size:0.75rem;color:#94a3b8">${s.email}</div></div>
-          <div style="color:#ef4444;font-weight:700">${s.avg}%</div>
-        </div>
-      `).join('');
-        } else {
-          weakList.innerHTML = '<p style="color:#10b981;font-size:0.875rem">No weak students detected. All students are above 40%.</p>';
-        }
-      }
-      document.getElementById('sAvg').textContent = total ? avg + '%' : '-';
-      document.getElementById('sPass').textContent = total ? passRate + '%' : '-';
-      document.getElementById('anaAvg').textContent = total ? avg + '%' : '-';
-      document.getElementById('anaRing').style.setProperty('--pct', avg + '%');
-      document.getElementById('anaHigh').textContent = total ? highest + '%' : '-';
-      document.getElementById('anaLow').textContent = total ? lowest + '%' : '-';
-
-      const weakStudents = Object.values(studentScores)
-        .map(student => ({ name: student.name, avg: Math.round(student.scores.reduce((a, b) => a + b, 0) / student.scores.length) }))
-        .filter(student => student.avg < 40);
-
-      const weakEl = document.getElementById('weakList');
-      weakEl.innerHTML = weakStudents.length
-        ? weakStudents.map(student => '<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:rgba(239,68,68,0.06);border:1px solid rgba(239,68,68,0.15);border-radius:10px;margin-bottom:6px"><span>' + student.name + '</span><span class="badge badge-danger">Avg: ' + student.avg + '%</span></div>').join('')
-        : '<p style="color:#64748b;font-size:0.875rem">' + (total ? 'No weak students right now.' : 'Complete tests to see analysis.') + '</p>';
-
-      const recentLabels = Object.keys(testScores).slice(-8);
-      const recentData = recentLabels.map(label => Math.round(testScores[label].reduce((a, b) => a + b, 0) / testScores[label].length));
-      safeChart('chartRecent', {
-        type: 'line',
-        data: { labels: recentLabels.length ? recentLabels : ['No data'], datasets: [{ label: 'Avg %', data: recentData.length ? recentData : [0], borderColor: '#818cf8', backgroundColor: 'rgba(99,102,241,0.1)', fill: true, tension: 0.4 }] },
-        options: { responsive: true, plugins: { legend: { labels: { color: '#94a3b8' } } }, scales: { x: { ticks: { color: '#64748b' }, grid: { color: 'rgba(255,255,255,0.04)' } }, y: { min: 0, max: 100, ticks: { color: '#64748b' }, grid: { color: 'rgba(255,255,255,0.04)' } } } }
-      });
-
-      const subLabels = Object.keys(subjectAccuracy);
-      const subData = subLabels.map(label => Math.round(subjectAccuracy[label].reduce((a, b) => a + b, 0) / subjectAccuracy[label].length));
-      safeChart('chartTopics', {
-        type: 'radar',
-        data: { labels: subLabels.length ? subLabels : ['No data'], datasets: [{ label: 'Accuracy %', data: subData.length ? subData : [0], borderColor: '#818cf8', backgroundColor: 'rgba(99,102,241,0.2)', pointBackgroundColor: '#818cf8' }] },
-        options: { responsive: true, scales: { r: { min: 0, max: 100, angleLines: { color: 'rgba(255,255,255,0.06)' }, grid: { color: 'rgba(255,255,255,0.06)' }, ticks: { display: false }, pointLabels: { color: '#94a3b8' } } }, plugins: { legend: { labels: { color: '#94a3b8' } } } }
-      });
-
-      safeChart('chartDist', {
-        type: 'bar',
-        data: { labels: ['0-20%', '20-40%', '40-60%', '60-80%', '80-100%'], datasets: [{ label: 'Students', data: scoreBuckets, backgroundColor: ['#ef4444', '#f59e0b', '#fbbf24', '#10b981', '#6366f1'], borderRadius: 8 }] },
-        options: { responsive: true, plugins: { legend: { display: false } }, scales: { x: { ticks: { color: '#64748b' }, grid: { display: false } }, y: { ticks: { color: '#64748b', stepSize: 1 }, grid: { color: 'rgba(255,255,255,0.04)' } } } }
-      });
     }
 
     async function loadStudents() {
@@ -1076,7 +951,7 @@
       </div>
       <div style="margin-top:10px;display:flex;align-items:center;gap:10px">
         <label style="font-size:0.8rem;color:#94a3b8">Marks awarded:</label>
-        <input type="number" class="form-control grader-marks" data-max="${q.marks}" data-qindex="${i}" value="0" style="width:80px"/>
+        <input type="number" class="form-control grader-marks" data-max="${q.marks}" data-qindex="${i}" value="0" style="width:80px" onfocus="this.select()"/>
       </div>
     </div></div>`;
       });
@@ -1097,7 +972,7 @@
         const passed = pct >= (res.passingMarks || 35);
         const grade = getGrade(pct);
 
-        await updateDoc(doc(db, 'results', activeResultId), {
+        const resultUpdate = {
           score: totalScore,
           percentage: pct,
           grade: grade.grade,
@@ -1105,7 +980,17 @@
           status: 'graded',
           isEvaluated: true,
           evaluatedAt: serverTimestamp()
-        });
+        };
+        await updateDoc(doc(db, 'results', activeResultId), resultUpdate);
+
+        if (passed) {
+          await setDoc(doc(db, 'certificates', 'CERT_' + activeResultId), {
+            ...res,
+            ...resultUpdate,
+            certId: 'EF' + Math.random().toString(36).substr(2, 9).toUpperCase(),
+            issuedAt: serverTimestamp()
+          });
+        }
 
         closeModal('gradeModal');
         showToast('Grades submitted!', 'success');
@@ -1175,80 +1060,119 @@
       };
 
       async function loadDashStats() {
+        const studentQuery = query(collection(db, 'users'), where('schoolId', '==', schoolId), where('role', '==', 'student'));
+        const testQuery = query(collection(db, 'tests'), where('teacherId', '==', uid));
+        const resultQuery = query(collection(db, 'results'), where('teacherId', '==', uid), where('status', '==', 'graded'));
+
         const [studentSnap, testSnap, resultSnap] = await Promise.all([
-          getDocs(query(collection(db, 'users'), where('schoolId', '==', schoolId), where('role', '==', 'student'))),
-          getDocs(query(collection(db, 'tests'), where('teacherId', '==', uid))),
-          getDocs(query(collection(db, 'results'), where('teacherId', '==', uid)))
+          getDocs(studentQuery).catch(e => { console.error('Stats Students fail:', e); return { empty: true, size: 0, forEach: () => {} }; }),
+          getDocs(testQuery).catch(e => { console.error('Stats Tests fail:', e); return { empty: true, size: 0, forEach: () => {} }; }),
+          getDocs(resultQuery).catch(e => { console.error('Stats Results fail:', e); return { empty: true, size: 0, forEach: () => {} }; })
         ]);
 
         const updateVal = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
         
-        updateVal('sMyStudents', studentSnap.size);
+        let myStudentCount = 0;
+        studentSnap.forEach(d => {
+          const s = d.data();
+          if (myClass && s.className !== myClass) return;
+          if (myDiv && s.division !== myDiv) return;
+          myStudentCount++;
+        });
+
+        updateVal('sMyStudents', myStudentCount);
         updateVal('sMyTests', testSnap.size);
 
-        if (resultSnap.empty) return;
+        if (resultSnap.empty) {
+            updateVal('sAvg', '-');
+            updateVal('sPass', '-');
+            updateVal('anaAvg', '-');
+            return;
+        }
 
-        let totalScore = 0, gradedCount = 0, passed = 0;
+        let totalScore = 0, gradedCount = 0, passed = 0, highest = 0, lowest = 100;
         const studentStats = {};
+        const scoreBuckets = [0,0,0,0,0];
+        const subjectAccuracy = {};
+        const testScores = {};
 
         resultSnap.forEach(d => {
           const r = d.data();
           if (r.status !== 'pending') {
-            totalScore += (r.percentage || 0);
+            const pct = r.percentage || 0;
+            totalScore += pct;
             gradedCount++;
             if (r.passed) passed++;
+            highest = Math.max(highest, pct);
+            lowest = Math.min(lowest, pct);
             
+            const bucketIdx = Math.min(Math.floor(pct/20), 4);
+            scoreBuckets[bucketIdx]++;
+
+            const testName = r.testName || 'Test';
+            if (!testScores[testName]) testScores[testName] = [];
+            testScores[testName].push(pct);
+
+            const subject = r.subject || 'General';
+            if (!subjectAccuracy[subject]) subjectAccuracy[subject] = [];
+            subjectAccuracy[subject].push(pct);
+
             if (!studentStats[r.studentId]) studentStats[r.studentId] = { name: r.studentName, scores: [] };
-            studentStats[r.studentId].scores.push(r.percentage || 0);
+            studentStats[r.studentId].scores.push(pct);
           }
         });
 
-        // Calculate Averages
         const avg = gradedCount > 0 ? Math.round(totalScore / gradedCount) : 0;
         const passRate = gradedCount > 0 ? Math.round((passed / gradedCount) * 100) : 0;
         
         updateVal('sAvg', avg + '%');
         updateVal('sPass', passRate + '%');
-        
-        // Find Top/Weak Students
+        updateVal('anaAvg', avg + '%');
+        updateVal('anaHigh', (highest || 0) + '%');
+        updateVal('anaLow', (totalScore ? lowest : 0) + '%');
+        const ring = document.getElementById('anaRing');
+        if (ring) ring.style.setProperty('--pct', avg + '%');
+
+        // Lists
         const students = Object.values(studentStats).map(s => ({
           name: s.name,
           avg: Math.round(s.scores.reduce((a, b) => a + b, 0) / s.scores.length)
         }));
 
         const topPerformers = [...students].sort((a,b) => b.avg - a.avg).slice(0, 3);
-        const weakStudents = students.filter(s => s.avg < 40).slice(0, 3);
+        const weakStudents = students.filter(s => s.avg < 40).sort((a,b) => a.avg - b.avg);
 
         const topList = document.getElementById('topPerformersList');
         const weakList = document.getElementById('weakStudentsList');
-        
-        if (topList) {
-          topList.innerHTML = topPerformers.length ? topPerformers.map(s => `<div style="display:flex;justify-content:space-between;padding:8px 12px;background:rgba(16,185,129,0.05);border-radius:6px;font-size:0.85rem"><span>${s.name}</span><span style="color:#10b981;font-weight:700">${s.avg}%</span></div>`).join('') : '<div style="font-size:0.8rem;color:#64748b">No data</div>';
-        }
-        if (weakList) {
-          weakList.innerHTML = weakStudents.length ? weakStudents.map(s => `<div style="display:flex;justify-content:space-between;padding:8px 12px;background:rgba(239,68,68,0.05);border-radius:6px;font-size:0.85rem"><span>${s.name}</span><span style="color:#ef4444;font-weight:700">${s.avg}%</span></div>`).join('') : '<div style="font-size:0.8rem;color:#64748b">None</div>';
-        }
-        
-        // Charting
-        const testLabels = [], testAverages = [];
-        const testGroups = {};
-        resultSnap.forEach(d => {
-          const r = d.data();
-          if (r.status !== 'pending') {
-            if (!testGroups[r.testName]) testGroups[r.testName] = [];
-            testGroups[r.testName].push(r.percentage || 0);
-          }
-        });
+        const anaWeakList = document.getElementById('weakList');
 
-        Object.keys(testGroups).slice(-6).forEach(name => {
-          testLabels.push(name);
-          testAverages.push(Math.round(testGroups[name].reduce((a,b)=>a+b,0) / testGroups[name].length));
-        });
+        if (topList) topList.innerHTML = topPerformers.map(s => `<div style="display:flex;justify-content:space-between;padding:8px 12px;background:rgba(16,185,129,0.05);border-radius:6px;font-size:0.85rem"><span>${s.name}</span><span style="color:#10b981;font-weight:700">${s.avg}%</span></div>`).join('') || '<div style="font-size:0.8rem;color:#64748b">No data</div>';
+        
+        const weakHtml = weakStudents.length ? weakStudents.map(s => `<div style="display:flex;justify-content:space-between;padding:8px 12px;background:rgba(239,68,68,0.05);border-radius:6px;font-size:0.85rem"><span>${s.name}</span><span style="color:#ef4444;font-weight:700">${s.avg}%</span></div>`).join('') : '<div style="font-size:0.8rem;color:#10b981">None (All >40%)</div>';
+        if (weakList) weakList.innerHTML = weakHtml;
+        if (anaWeakList) anaWeakList.innerHTML = weakHtml;
 
+        // Charts
+        const recentLabels = Object.keys(testScores).slice(-6);
+        const recentData = recentLabels.map(label => Math.round(testScores[label].reduce((a, b) => a + b, 0) / testScores[label].length));
         safeChart('chartRecent', {
           type: 'line',
-          data: { labels: testLabels, datasets: [{ label: 'Avg Score %', data: testAverages, borderColor: '#6366f1', tension: 0.4 }] },
+          data: { labels: recentLabels, datasets: [{ label: 'Avg Success %', data: recentData, borderColor: '#6366f1', backgroundColor: 'rgba(99,102,241,0.05)', fill: true, tension: 0.4 }] },
           options: { responsive: true, scales: { y: { min: 0, max: 100 } } }
+        });
+
+        const subLabels = Object.keys(subjectAccuracy);
+        const subData = subLabels.map(label => Math.round(subjectAccuracy[label].reduce((a, b) => a + b, 0) / subjectAccuracy[label].length));
+        safeChart('chartTopics', {
+          type: 'radar',
+          data: { labels: subLabels, datasets: [{ label: 'Accuracy %', data: subData, backgroundColor: 'rgba(99,102,241,0.2)', borderColor: '#6366f1' }] },
+          options: { responsive: true, scales: { r: { min: 0, max: 100, ticks: { display: false } } } }
+        });
+
+        safeChart('chartDist', {
+          type: 'bar',
+          data: { labels: ['0-20%', '20-40%', '40-60%', '60-80%', '80-100%'], datasets: [{ label: 'Students', data: scoreBuckets, backgroundColor: ['#ef4444', '#f59e0b', '#fbbf24', '#10b981', '#6366f1'], borderRadius: 8 }] },
+          options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { ticks: { stepSize: 1 } } } }
         });
       }
 

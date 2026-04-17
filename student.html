@@ -392,8 +392,8 @@ window.submitExam = async (isAutoSub = false) => {
     testName: currentTest.name,
     subject: currentTest.subject || '',
     studentId: uid,
-    studentName: userData.displayName,
-    studentEmail: userData.email,
+    studentName: userName,
+    studentEmail: userEmail,
     schoolId: currentTest.schoolId || schoolId,
     schoolName: currentTest.schoolName || schoolName,
     teacherId: currentTest.teacherId || '',
@@ -562,52 +562,102 @@ window.downloadCert = (name, test, subject, score, total, pct, grade, certId, cl
   const pdf = new jsPDF('landscape', 'mm', 'a4');
   const w = 297;
   const h = 210;
+
+  // Background Fill
+  pdf.setFillColor(252, 252, 255);
+  pdf.rect(0, 0, w, h, 'F');
+
+  // Outer Border (Indigo)
   pdf.setDrawColor(99, 102, 241);
-  pdf.setLineWidth(2);
-  pdf.rect(10, 10, w - 20, h - 20);
-  pdf.setDrawColor(129, 140, 248);
+  pdf.setLineWidth(1.5);
+  pdf.rect(8, 8, w - 16, h - 16);
+
+  // Inner Border (Gold)
+  pdf.setDrawColor(212, 175, 55);
   pdf.setLineWidth(0.5);
-  pdf.rect(14, 14, w - 28, h - 28);
-  pdf.setFontSize(32);
+  pdf.rect(12, 12, w - 24, h - 24);
+
+  // Logo / Header Section
+  pdf.setFont('helvetica', 'bold');
+  pdf.setFontSize(26);
   pdf.setTextColor(99, 102, 241);
-  pdf.text('CERTIFICATE OF ACHIEVEMENT', w / 2, 45, { align: 'center' });
+  pdf.text('CERTIFICATE OF EXCELLENCE', w / 2, 40, { align: 'center' });
+  
   pdf.setFontSize(14);
-  pdf.setTextColor(100);
-  pdf.text(school || 'ExamFlow', w / 2, 58, { align: 'center' });
-  pdf.setFontSize(9);
-  pdf.setTextColor(120);
-  pdf.text('An initiative by Judiq AI', w / 2, 63, { align: 'center' });
+  pdf.setTextColor(71, 85, 105);
+  pdf.text(school || 'EXAMFLOW EDUCATIONAL INSTITUTE', w / 2, 52, { align: 'center' });
+
+  // Divider
+  pdf.setDrawColor(226, 232, 240);
+  pdf.setLineWidth(0.3);
+  pdf.line(80, 60, w - 80, 60);
+
+  // Main Content
+  pdf.setFont('helvetica', 'normal');
+  pdf.setFontSize(16);
+  pdf.setTextColor(100, 116, 139);
+  pdf.text('This certification is proudly presented to', w / 2, 75, { align: 'center' });
+
+  pdf.setFont('helvetica', 'bold');
+  pdf.setFontSize(38);
+  pdf.setTextColor(30, 41, 59);
+  pdf.text(name ? name.toUpperCase() : 'STUDENT NAME', w / 2, 95, { align: 'center' });
+
+  pdf.setFont('helvetica', 'italic');
+  pdf.setFontSize(14);
+  pdf.setTextColor(100, 116, 139);
+  pdf.text(`for exceptional performance in the ${subject || 'General'} examination`, w / 2, 110, { align: 'center' });
+
+  pdf.setFont('helvetica', 'bold');
+  pdf.setFontSize(22);
+  pdf.setTextColor(99, 102, 241);
+  pdf.text(`"${test || 'Academic Achievement Test'}"`, w / 2, 125, { align: 'center' });
+
+  // Stats Table Replacement
   pdf.setDrawColor(99, 102, 241);
-  pdf.setLineWidth(0.8);
-  pdf.line(60, 69, w - 60, 69);
-  pdf.setFontSize(14);
-  pdf.setTextColor(60);
-  pdf.text('This is to certify that', w / 2, 84, { align: 'center' });
-  pdf.setFontSize(28);
-  pdf.setTextColor(30);
-  pdf.text(name || 'Student', w / 2, 99, { align: 'center' });
-  pdf.setFontSize(12);
-  pdf.setTextColor(80);
-  if (cls || div) pdf.text('Class: ' + (cls || '') + ' | Division: ' + (div || ''), w / 2, 109, { align: 'center' });
-  pdf.text('has successfully passed the examination', w / 2, 121, { align: 'center' });
-  pdf.setFontSize(20);
-  pdf.setTextColor(99, 102, 241);
-  pdf.text('"' + (test || 'Test') + '"', w / 2, 135, { align: 'center' });
-  pdf.setFontSize(12);
-  pdf.setTextColor(80);
-  pdf.text('Subject: ' + (subject || 'General') + '   |   Score: ' + score + '/' + total + ' (' + pct + '%)   |   Grade: ' + grade, w / 2, 148, { align: 'center' });
-  pdf.setDrawColor(180);
-  pdf.line(45, 168, 125, 168);
-  pdf.line(w - 125, 168, w - 45, 168);
+  pdf.setFillColor(248, 250, 252);
+  pdf.roundedRect(60, 140, w - 120, 25, 3, 3, 'FD');
+  
+  pdf.setFontSize(11);
+  pdf.setTextColor(71, 85, 105);
+  pdf.text('FINAL SCORE', 85, 148, { align: 'center' });
+  pdf.text('PERCENTAGE', 148, 148, { align: 'center' });
+  pdf.text('GRADE', 211, 148, { align: 'center' });
+
+  pdf.setFontSize(16);
+  pdf.setTextColor(30, 41, 59);
+  pdf.text(`${score} / ${total}`, 85, 158, { align: 'center' });
+  pdf.text(`${pct}%`, 148, 158, { align: 'center' });
+  pdf.text(grade, 211, 158, { align: 'center' });
+
+  // Footer Decoration
+  pdf.setDrawColor(212, 175, 55);
+  pdf.setLineWidth(1);
+  pdf.line(40, 175, 100, 175);
+  pdf.line(w - 100, 175, w - 40, 175);
+
   pdf.setFontSize(10);
-  pdf.setTextColor(120);
-  pdf.text('Date: ' + new Date().toLocaleDateString('en-IN'), 85, 176, { align: 'center' });
-  pdf.text('Authorized Signature', w - 85, 176, { align: 'center' });
+  pdf.setTextColor(148, 163, 184);
+  pdf.text('DATE OF ISSUANCE', 70, 182, { align: 'center' });
+  pdf.text('AUTHORIZED SIGNATORY', w - 70, 182, { align: 'center' });
+
+  pdf.setFont('helvetica', 'bold');
+  pdf.setTextColor(71, 85, 105);
+  pdf.text(new Date().toLocaleDateString('en-GB', { day:'numeric', month:'long', year:'numeric' }), 70, 188, { align: 'center' });
+  
+  // Branding & Verification
   pdf.setFontSize(8);
-  pdf.setTextColor(160);
-  pdf.text('Certificate ID: ' + (certId || 'N/A') + '  |  An initiative by Judiq AI', w / 2, 192, { align: 'center' });
-  pdf.save('Certificate_' + (name || 'Student') + '_' + (test || 'Test') + '.pdf');
-  showToast('Certificate downloaded!', 'success');
+  pdf.setTextColor(148, 163, 184);
+  pdf.text(`Certificate ID: ${certId || 'EF-GENERAL-000'} | Digitally verified by ExamFlow`, 20, 198);
+  pdf.text('Initiative by Judiq AI', w - 50, 198);
+
+  // Royal Accent (Bottom corners)
+  pdf.setFillColor(99, 102, 241);
+  pdf.triangle(0, h, 20, h, 0, h - 20, 'F');
+  pdf.triangle(w, h, w - 20, h, w, h - 20, 'F');
+
+  pdf.save(`Certificate_${name || 'Student'}_${test || 'Test'}.pdf`);
+  showToast('Premium Certificate Downloaded!', 'success');
 };
 </script>
 </body>
