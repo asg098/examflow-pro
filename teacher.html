@@ -694,7 +694,7 @@
         closeModal('addStudentModal');
         document.getElementById('addStudentForm').reset();
         showToast('Student account created successfully.', 'success');
-        await loadStudents();
+        if (typeof loadAll === 'function') await loadAll(); else await loadStudents();
       } catch (err) {
         console.error(err);
         let msg = err.message || 'Failed to create student';
@@ -822,7 +822,9 @@
         document.getElementById('testInstructions').value = '';
         renderQuestions();
         showToast('Test published!', 'success');
-        await Promise.all([loadTests(), loadDashStats()]);
+        showSection('secTests', 'navTests');
+        if (typeof loadAll === 'function') await loadAll();
+        else await Promise.all([loadTests(), loadDashStats()]);
       } catch (e) {
         showToast('Error: ' + e.message, 'error');
       } finally {
@@ -843,7 +845,9 @@
         createdAt: serverTimestamp()
       });
       showToast('Draft saved!', 'info');
-      await loadTests();
+      showSection('secTests', 'navTests');
+      if (typeof loadAll === 'function') await loadAll();
+      else await loadTests();
     };
 
     async function loadTests() {
@@ -932,8 +936,14 @@
       const test = testSnap.data();
       const keys = keysSnap.data().keys || {};
       const container = document.getElementById('gradeContainer');
-      let h = `<div style="margin-bottom:20px;padding:12px;background:rgba(99,102,241,0.05);border-radius:10px">
-    <strong>${result.studentName}</strong> | ${result.testName}
+      
+      let topMeta = `<strong>${result.studentName}</strong> | ${result.testName}`;
+      if (result.recordingUrl) {
+         topMeta += ` <span style="float:right"><a href="${result.recordingUrl}" target="_blank" class="badge badge-error" style="text-decoration:none;font-weight:bold">🔴 View Screen Recording</a></span>`;
+      }
+      
+      let h = `<div style="margin-bottom:20px;padding:12px;background:rgba(99,102,241,0.05);border-radius:10px;line-height:2">
+    ${topMeta}
   </div>`;
 
     test.questions.forEach((q, i) => {
@@ -977,10 +987,19 @@
       </div>
       <div style="margin-top:10px;display:flex;align-items:center;gap:10px">
         <label style="font-size:0.8rem;color:#94a3b8">Marks awarded:</label>
-        <input type="number" class="form-control grader-marks" data-max="${q.marks}" data-qindex="${i}" value="${autoMarks}" style="width:80px" onfocus="this.select()"/>
+        <input type="number" class="form-control grader-marks" data-max="${q.marks}" data-qindex="${i}" data-type="${isDescriptive ? 'manual' : 'auto'}" value="${autoMarks}" style="width:80px" onfocus="this.select()"/>
       </div>
     </div></div>`;
       });
+
+    h += `
+        <div class="card" style="margin-top:16px;">
+          <div class="card-body">
+            <label class="form-label" style="font-size:0.9rem;font-weight:600">Teacher Feedback / Remarks</label>
+            <textarea id="gradeFeedback" class="form-control" rows="3" placeholder="Optional comments for the student..."></textarea>
+          </div>
+        </div>
+      `;
 
       container.innerHTML = h;
       openModal('gradeModal');
@@ -988,18 +1007,41 @@
 
     window.submitGrades = async () => {
       const inputs = document.querySelectorAll('.grader-marks');
-      let totalScore = 0;
-      inputs.forEach(input => { totalScore += parseFloat(input.value || 0); });
+      let autoScore = 0;
+      let manualScore = 0;
+      inputs.forEach(input => { 
+        const v = parseFloat(input.value || 0);
+        if (input.dataset.type === 'manual') manualScore += v;
+        else autoScore += v;
+      });
+      const finalScore = autoScore + manualScore;
 
       try {
         const resSnap = await getDoc(doc(db, 'results', activeResultId));
         const res = resSnap.data();
-        const pct = Math.round((totalScore / res.totalMarks) * 100);
+        const pct = Math.round((finalScore / res.totalMarks) * 100);
         const passed = pct >= (res.passingMarks || 35);
         const grade = getGrade(pct);
+        const feedbackText = document.getElementById('gradeFeedback').value.trim();
 
+        // 1. Separate Persistence Layer for Evaluations
+        await addDoc(collection(db, 'evaluations'), {
+          attemptId: activeResultId,
+          teacherId: uid,
+          autoScore,
+          manualScore,
+          finalScore,
+          feedback: feedbackText,
+          savedAt: serverTimestamp()
+        });
+
+        // 2. Update Primary Attempt State
         const resultUpdate = {
-          score: totalScore,
+          score: finalScore, 
+          finalScore: finalScore,
+          autoScore: autoScore,
+          manualScore: manualScore,
+          feedback: feedbackText,
           percentage: pct,
           grade: grade.grade,
           passed: passed,
@@ -1075,14 +1117,14 @@
         closeModal('addBankQModal');
         showToast('Added to bank!', 'success');
         document.getElementById('addBankForm').reset();
-        await loadBank();
+        if (typeof loadAll === 'function') await loadAll(); else await loadBank();
       };
 
       window.delBankQ = async (id) => {
         if (!confirm('Remove?')) return;
         await deleteDoc(doc(db, 'questionBank', id));
         showToast('Removed', 'warning');
-        await loadBank();
+        if (typeof loadAll === 'function') await loadAll(); else await loadBank();
       };
 
       async function loadDashStats() {

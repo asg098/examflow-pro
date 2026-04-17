@@ -63,9 +63,12 @@
 
       <!-- Test Engine -->
       <div class="section hidden" id="secExam">
-        <div class="flex-between" style="margin-bottom:20px">
+        <div class="flex-between" style="margin-bottom:10px">
           <div><h2 style="font-size:1.3rem" id="examTitle">Test</h2><p style="color:#64748b;font-size:0.85rem" id="examInfo"></p></div>
           <div class="timer" id="examTimer">00:00</div>
+        </div>
+        <div style="width: 100%; height: 6px; background: rgba(255,255,255,0.06); border-radius: 4px; margin-bottom: 20px; overflow: hidden;">
+           <div id="testProgress" style="width: 0%; height: 100%; background: #6366f1; transition: width 0.3s ease;"></div>
         </div>
         <div id="examQuestions"></div>
         <div style="margin-top:24px;display:flex;gap:12px">
@@ -111,10 +114,12 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { getAuth, onAuthStateChanged, signOut as fbSignOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 import { getFirestore, collection, getDocs, doc, getDoc, addDoc, query, where, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
 
 const app = initializeApp({ apiKey:"AIzaSyCbSZRvUsFuepNW8W2D5x-5EwHEE_O2UdE", authDomain:"aixynztestseries-fc5da.firebaseapp.com", projectId:"aixynztestseries-fc5da", storageBucket:"aixynztestseries-fc5da.firebasestorage.app", messagingSenderId:"354795848617", appId:"1:354795848617:web:ab50b9095256b6febbfab8" });
 const auth = getAuth(app);
 const db = getFirestore(app);
+const storage = getStorage(app);
 
 let uid = null;
 let userEmail = '';
@@ -127,6 +132,9 @@ let currentTest = null;
 let examTimer = null;
 let timeLeft = 0;
 let answers = {};
+let mediaRecorder = null;
+let recordedChunks = [];
+window._examStream = null;
 
 onAuthStateChanged(auth, async (u) => {
   if (!u) { window.location.href = 'index.html'; return; }
@@ -298,6 +306,26 @@ window.startTest = async (testId) => {
     console.log('Fullscreen failed:', e);
   }
 
+  try {
+    window._examStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
+    recordedChunks = [];
+    mediaRecorder = new MediaRecorder(window._examStream, { mimeType: 'video/webm' });
+    mediaRecorder.ondataavailable = e => { if (e.data.size > 0) recordedChunks.push(e.data); };
+    mediaRecorder.start();
+    
+    window._examStream.getVideoTracks()[0].onended = () => {
+      if (currentTest) {
+        alert("TEST BLOCKED: Screen sharing was forcibly stopped. Test will auto-submit.");
+        submitExam(true);
+      }
+    };
+  } catch (err) {
+    alert("Permission to record screen is mandatory for this exam.");
+    if (document.fullscreenElement) try { document.exitFullscreen(); } catch (ex){}
+    currentTest = null;
+    return;
+  }
+
   window._proctorVis = () => {
     if (document.visibilityState === 'hidden' && currentTest) {
       alert('TEST BLOCKED: Tab switching or window minimization detected. Test will be auto-submitted.');
@@ -313,10 +341,14 @@ window.startTest = async (testId) => {
   document.addEventListener('visibilitychange', window._proctorVis);
   document.addEventListener('fullscreenchange', window._proctorFs);
 
-  document.getElementById('answeredCount').textContent = '0';
   document.getElementById('examTitle').textContent = currentTest.name || 'Test';
-  document.getElementById('examInfo').textContent = (currentTest.subject || 'General') + ' ? ' + questions.length + ' Questions ? ' + (currentTest.totalMarks || 100) + ' Marks ? Pass: ' + (currentTest.passingMarks || 35);
+  document.getElementById('examInfo').textContent = (currentTest.subject || 'General') + ' | ' + questions.length + ' Questions | ' + (currentTest.totalMarks || 100) + ' Marks | Pass: ' + (currentTest.passingMarks || 35);
   document.getElementById('totalQCount').textContent = String(questions.length);
+  
+  const restoredCount = Object.keys(answers).filter(key => answers[key]).length;
+  document.getElementById('answeredCount').textContent = restoredCount;
+  if(questions.length) document.getElementById('testProgress').style.width = Math.round((restoredCount / questions.length) * 100) + '%';
+  
   showSection('secExam', null);
 
   document.getElementById('sidebarMain').style.pointerEvents = 'none';
@@ -370,21 +402,41 @@ window.startTest = async (testId) => {
   }, 1000);
 };
 
+let autosaveTimeout = null;
+
 window.setAnswer = (idx, val) => {
   answers[idx] = val;
-  document.getElementById('answeredCount').textContent = Object.keys(answers).filter(key => answers[key]).length;
+  const ansCount = Object.keys(answers).filter(key => answers[key]).length;
+  document.getElementById('answeredCount').textContent = ansCount;
+  if (currentTest && currentTest.questions) {
+     const pct = Math.round((ansCount / currentTest.questions.length) * 100);
+     document.getElementById('testProgress').style.width = pct + '%';
+  }
   // State persistence
   if (currentTest) {
     localStorage.setItem(`examflow_draft_${currentTest.id}`, JSON.stringify(answers));
+    clearTimeout(autosaveTimeout);
+    autosaveTimeout = setTimeout(() => {
+      setDoc(doc(db, 'drafts', uid + '_' + currentTest.id), { answers, testId: currentTest.id, studentId: uid, savedAt: serverTimestamp() }, { merge: true }).catch(console.error);
+    }, 2000);
   }
 };
 
 window.updateMulti = (idx) => {
   answers[idx] = Array.from(document.querySelectorAll('.mq' + idx + ':checked')).map(c => c.value).sort().join(',');
-  document.getElementById('answeredCount').textContent = Object.keys(answers).filter(key => answers[key]).length;
+  const ansCount = Object.keys(answers).filter(key => answers[key]).length;
+  document.getElementById('answeredCount').textContent = ansCount;
+  if (currentTest && currentTest.questions) {
+     const pct = Math.round((ansCount / currentTest.questions.length) * 100);
+     document.getElementById('testProgress').style.width = pct + '%';
+  }
   // State persistence
   if (currentTest) {
     localStorage.setItem(`examflow_draft_${currentTest.id}`, JSON.stringify(answers));
+    clearTimeout(autosaveTimeout);
+    autosaveTimeout = setTimeout(() => {
+      setDoc(doc(db, 'drafts', uid + '_' + currentTest.id), { answers, testId: currentTest.id, studentId: uid, savedAt: serverTimestamp() }, { merge: true }).catch(console.error);
+    }, 2000);
   }
 };
 
@@ -403,8 +455,15 @@ function updateTimerDisplay() {
 }
 
 window.submitExam = async (isAutoSub = false) => {
+  if (window._isSubmitting) return;
   if (examTimer) clearInterval(examTimer);
   if (!currentTest) return;
+
+  const answeredCount = Object.keys(answers).filter(key => answers[key]).length;
+  if (!isAutoSub && answeredCount === 0) {
+    showToast("Cannot submit an empty test! Please answer at least one question.", "warning");
+    return;
+  }
 
   if (!isAutoSub && !confirm('Submit this test? You cannot change your answers after.')) {
     examTimer = setInterval(() => {
@@ -414,6 +473,8 @@ window.submitExam = async (isAutoSub = false) => {
     }, 1000);
     return;
   }
+
+  window._isSubmitting = true;
 
   if (window._proctorVis) {
     document.removeEventListener('visibilitychange', window._proctorVis);
@@ -425,6 +486,33 @@ window.submitExam = async (isAutoSub = false) => {
     }
     // ensure mouse is not stuck
     document.body.style.pointerEvents = 'auto';
+  }
+
+  let videoUrl = '';
+  if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+    showToast('Processing screen recording...', 'info');
+    await new Promise(resolve => {
+      mediaRecorder.onstop = () => resolve();
+      mediaRecorder.stop();
+    });
+  }
+
+  if (window._examStream) {
+    window._examStream.getTracks().forEach(t => t.stop());
+    window._examStream = null;
+  }
+
+  if (recordedChunks.length > 0) {
+    showToast('Uploading proctoring video securely... This may take a minute.', 'info');
+    const blob = new Blob(recordedChunks, { type: 'video/webm' });
+    const vidRef = ref(storage, `recordings/${uid}_${currentTest.id}_${Date.now()}.webm`);
+    try {
+      await uploadBytes(vidRef, blob);
+      videoUrl = await getDownloadURL(vidRef);
+    } catch(e) {
+      console.error('Video upload fail:', e);
+      showToast('Video upload failed, but test submission will continue.', 'warning');
+    }
   }
 
   const resultData = {
@@ -442,6 +530,7 @@ window.submitExam = async (isAutoSub = false) => {
     answers: { ...answers },
     status: 'pending',
     isEvaluated: false,
+    recordingUrl: videoUrl,
     submittedAt: serverTimestamp()
   };
 
@@ -459,6 +548,8 @@ window.submitExam = async (isAutoSub = false) => {
   } catch (e) {
     console.error(e);
     showToast('Submission failed: ' + e.message, 'error');
+  } finally {
+    window._isSubmitting = false;
   }
 };
 
@@ -549,25 +640,26 @@ async function loadLeaderboard() {
   let snap;
   try {
     snap = schoolId
-      ? await getDocs(query(collection(db, 'results'), where('schoolId', '==', schoolId)))
+      ? await getDocs(query(collection(db, 'results'), where('schoolId', '==', schoolId), where('status', '==', 'graded')))
       : { empty: true, forEach: () => {} };
   } catch (err) {
-    console.warn('Leaderboard fetch failed (likely missing index):', err);
+    console.warn('Leaderboard fetch failed:', err);
     snap = { empty: true, forEach: () => {} };
   }
 
-  const studentMap = {};
+  const studentMap = {}; // Will hold max finalScore per student
   snap.forEach(d => {
-    const result = d.data();
-    if (!studentMap[result.studentId]) studentMap[result.studentId] = { name: result.studentName || 'Student', scores: [], count: 0 };
-    studentMap[result.studentId].scores.push(result.percentage || 0);
-    studentMap[result.studentId].count++;
+    const r = d.data();
+    const fScore = r.finalScore || r.score || 0;
+    if (!studentMap[r.studentId] || studentMap[r.studentId].finalScore < fScore) {
+      studentMap[r.studentId] = { name: r.studentName || 'Student', finalScore: fScore, percentage: r.percentage || 0 };
+    }
   });
 
-  const entries = Object.entries(studentMap).map(([id, student]) => ({ id, name: student.name, avg: Math.round(student.scores.reduce((a, b) => a + b, 0) / student.scores.length), count: student.count })).sort((a, b) => b.avg - a.avg);
+  const entries = Object.entries(studentMap).map(([id, student]) => ({ id, name: student.name, score: student.finalScore, percentage: student.percentage })).sort((a, b) => b.score - a.score);
   const tbody = document.getElementById('leaderTable');
   if (!entries.length) {
-    tbody.innerHTML = '<tr><td colspan="4"><div class="empty-state"><div class="empty-title">No leaderboard data</div></div></td></tr>';
+    tbody.innerHTML = '<tr><td colspan="4"><div class="empty-state"><div class="empty-title">No evaluated exams yet</div></div></td></tr>';
     return;
   }
 
@@ -577,7 +669,7 @@ async function loadLeaderboard() {
     const rank = index + 1;
     if (entry.id === uid) document.getElementById('sRank').textContent = '#' + rank;
     const isMe = entry.id === uid;
-    tbody.innerHTML += '<tr style="' + (isMe ? 'background:rgba(99,102,241,0.08)' : '') + '"><td>' + rank + '</td><td><strong>' + entry.name + '</strong>' + (isMe ? ' <span class="badge badge-primary">You</span>' : '') + '</td><td style="font-weight:600">' + entry.avg + '%</td><td>' + entry.count + '</td></tr>';
+    tbody.innerHTML += '<tr style="' + (isMe ? 'background:rgba(99,102,241,0.08)' : '') + '"><td>' + rank + '</td><td><strong>' + entry.name + '</strong>' + (isMe ? ' <span class="badge badge-primary">You</span>' : '') + '</td><td style="font-weight:600">' + entry.score + ' marks</td><td>' + entry.percentage + '%</td></tr>';
   });
 }
 

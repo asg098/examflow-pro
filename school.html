@@ -332,14 +332,14 @@ window.addClass = async () => {
   document.getElementById('addClassForm').reset();
   closeModal('addClassModal');
   showToast('Class added!', 'success');
-  await Promise.all([loadClasses(), loadDashStats()]);
+  if (typeof loadAll === 'function') await loadAll();
 };
 
 window.deleteClass = async (id) => {
   if (!confirm('Delete?')) return;
   await deleteDoc(doc(db, 'classes', id));
   showToast('Deleted', 'warning');
-  await Promise.all([loadClasses(), loadDashStats()]);
+  if (typeof loadAll === 'function') await loadAll();
 };
 
 async function loadRegisteredTeachers() {
@@ -406,7 +406,7 @@ window.assignTeacher = async () => {
   document.getElementById('teacherSubject').value = '';
   closeModal('addTeacherModal');
   showToast('Teacher assigned!', 'success');
-  await Promise.all([loadTeachers(), loadDashStats(), loadRegisteredTeachers()]);
+  if (typeof loadAll === 'function') await loadAll();
 };
 
 window.removeTeacher = async (id) => {
@@ -423,7 +423,7 @@ window.removeTeacher = async (id) => {
 
   await deleteDoc(doc(db, 'teachers', id));
   showToast('Removed', 'warning');
-  await Promise.all([loadTeachers(), loadDashStats(), loadRegisteredTeachers()]);
+  if (typeof loadAll === 'function') await loadAll();
 };
 
 async function loadStudents() {
@@ -521,7 +521,7 @@ window.createStudent = async () => {
     closeModal('addStudentModal');
     document.getElementById('addStudentForm').reset();
     showToast('Student added successfully!', 'success');
-    await Promise.all([loadStudents(), loadDashStats()]);
+    if (typeof loadAll === 'function') await loadAll();
   } catch (err) {
     console.error(err);
     showToast(err.message || 'Failed to create student', 'error');
@@ -535,7 +535,7 @@ window.deleteStudent = async (id) => {
   if (!confirm('Delete student account? This will not remove their auth account but they won\'t be able to log in to this school.')) return;
   await deleteDoc(doc(db, 'users', id));
   showToast('Student record removed', 'warning');
-  await Promise.all([loadStudents(), loadDashStats()]);
+  if (typeof loadAll === 'function') await loadAll();
 };
 
 async function loadPerformance() {
