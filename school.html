@@ -47,6 +47,10 @@
           <div class="stat-card"><div class="stat-icon" style="background:rgba(245,158,11,0.15);color:#fbbf24">👨‍🎓</div><div class="stat-value" id="statStudents">0</div><div class="stat-label">Students</div></div>
           <div class="stat-card"><div class="stat-icon" style="background:rgba(6,182,212,0.15);color:#67e8f9">⏳</div><div class="stat-value" id="statPending">0</div><div class="stat-label">Pending Eval</div></div>
         </div>
+        <div class="grid g-2" style="margin-bottom:28px">
+           <div class="card"><div class="card-body" style="display:flex;align-items:center;gap:16px"><div class="stat-icon" style="background:rgba(139,92,246,0.15);color:#a78bfa">📈</div><div><div class="stat-value" id="statAvgPct">0%</div><div class="stat-label">Avg. Score</div></div></div></div>
+           <div class="card"><div class="card-body" style="display:flex;align-items:center;gap:16px"><div class="stat-icon" style="background:rgba(16,185,129,0.15);color:#34d399">🎯</div><div><div class="stat-value" id="statPassRate">0%</div><div class="stat-label">Pass Rate</div></div></div></div>
+        </div>
         <div class="grid g-2">
           <div class="card"><div class="card-header"><h3 style="font-size:1rem">Recent Test Scores</h3></div><div class="card-body"><canvas id="chartPerf" height="220"></canvas></div></div>
           <div class="card"><div class="card-header"><h3 style="font-size:1rem">Pass/Fail Ratio</h3></div><div class="card-body"><canvas id="chartPF" height="220"></canvas></div></div>
@@ -61,7 +65,7 @@
 
       <!-- Teachers -->
       <div class="section hidden" id="secTeachers">
-        <div class="flex-between" style="margin-bottom:20px"><h2 style="font-size:1.3rem">Teachers</h2><button class="btn btn-primary" onclick="openModal('addTeacherModal')">+ Assign Teacher</button></div>
+        <div class="flex-between" style="margin-bottom:20px"><h2 style="font-size:1.3rem">Teachers</h2><button class="btn btn-primary" onclick="prepareTeacherModal()">+ Assign Teacher</button></div>
         <div class="card"><div class="card-body"><div class="table-wrap"><table class="table"><thead><tr><th>Name</th><th>Email</th><th>Class</th><th>Division</th><th>Subject</th><th>Actions</th></tr></thead><tbody id="teachersTable"><tr><td colspan="6"><div class="empty-state"><div class="empty-icon">🧑‍🏫</div><div class="empty-title">No teachers assigned</div></div></td></tr></tbody></table></div></div></div>
       </div>
 
@@ -174,6 +178,8 @@ onAuthStateChanged(auth, async (u) => {
     
     if (!schoolId && userData.role === 'school') {
       schoolId = 'SCH_' + u.uid.substring(0, 10).toUpperCase();
+      // Ensure the generated schoolId is saved back to the user document so security rules work
+      await updateDoc(doc(db, 'users', u.uid), { schoolId: schoolId });
     }
     
     // Finalize UI and hide loader
@@ -257,6 +263,13 @@ async function loadDashStats() {
   });
 
   document.getElementById('statPending').textContent = pendingCount;
+  
+  const totalGraded = passCount + failCount;
+  const avgPct = totalGraded > 0 ? Math.round(Object.values(testScores).flat().reduce((a,b)=>a+b, 0) / Object.values(testScores).flat().length) : 0;
+  const passRate = totalGraded > 0 ? Math.round((passCount / totalGraded) * 100) : 0;
+
+  document.getElementById('statAvgPct').textContent = avgPct + '%';
+  document.getElementById('statPassRate').textContent = passRate + '%';
   
   // Update Dashboard Charts
   initCharts(testScores, passCount, failCount);
@@ -342,6 +355,11 @@ window.deleteClass = async (id) => {
   if (typeof loadAll === 'function') await loadAll();
 };
 
+window.prepareTeacherModal = () => {
+  loadRegisteredTeachers();
+  openModal('addTeacherModal');
+};
+
 async function loadRegisteredTeachers() {
   const snap = await getDocs(query(collection(db, 'users'), where('schoolId', '==', schoolId), where('role', '==', 'teacher')));
   const select = document.getElementById('teacherEmailSelect');
@@ -394,12 +412,14 @@ window.assignTeacher = async () => {
   if (!className) { showToast('Select a class', 'warning'); return; }
   if (!division) { showToast('Enter division', 'warning'); return; }
 
-  const id = schoolId + '_' + email.replace(/[@.]/g, '_');
+  // Generate a composite ID that allows the same teacher to have multiple assignments (different class/subject)
+  const id = schoolId + '_' + email.replace(/[@.]/g, '_') + '_' + className.replace(/\s/g, '') + '_' + division + '_' + subject.replace(/\s/g, '');
   await setDoc(doc(db, 'teachers', id), { email, name, className, division, subject, schoolId, schoolName, createdAt: serverTimestamp() });
 
   const teacherUsers = await getDocs(query(collection(db, 'users'), where('email', '==', email), where('role', '==', 'teacher')));
   if (!teacherUsers.empty) {
-    await updateDoc(doc(db, 'users', teacherUsers.docs[0].id), { schoolId, schoolName, className, division, subject, active: true });
+    // We only update general account info, not specific class/subject since they can have multiple
+    await updateDoc(doc(db, 'users', teacherUsers.docs[0].id), { schoolId, schoolName, active: true });
   }
 
   document.getElementById('teacherDiv').value = '';
@@ -413,13 +433,8 @@ window.removeTeacher = async (id) => {
   if (!confirm('Remove?')) return;
 
   const assignmentSnap = await getDoc(doc(db, 'teachers', id));
-  if (assignmentSnap.exists()) {
-    const assignment = assignmentSnap.data();
-    const teacherUsers = await getDocs(query(collection(db, 'users'), where('email', '==', assignment.email), where('role', '==', 'teacher')));
-    if (!teacherUsers.empty) {
-      await updateDoc(doc(db, 'users', teacherUsers.docs[0].id), { className: '', division: '', subject: '' });
-    }
-  }
+  // No longer clearing user-doc fields here because they can have multiple assignments
+  // The 'teachers' collection is the source of truth for assignments.
 
   await deleteDoc(doc(db, 'teachers', id));
   showToast('Removed', 'warning');

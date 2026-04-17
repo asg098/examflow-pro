@@ -96,8 +96,15 @@
 
       <!-- Leaderboard -->
       <div class="section hidden" id="secLeader">
-        <h2 style="font-size:1.3rem;margin-bottom:20px">🏆 Leaderboard</h2>
-        <div class="card"><div class="card-body"><div class="table-wrap"><table class="table"><thead><tr><th>Rank</th><th>Student</th><th>Avg Score</th><th>Tests</th></tr></thead><tbody id="leaderTable"><tr><td colspan="4"><div class="empty-state"><div class="empty-icon">🏆</div><div class="empty-title">No data yet</div></div></td></tr></tbody></table></div></div></div>
+        <div class="flex-between" style="margin-bottom:20px">
+          <h2 style="font-size:1.3rem">🏆 Leaderboard</h2>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <select class="form-control" id="leadClass" onchange="loadLeaderboard()" style="width:110px"><option value="">All Classes</option></select>
+            <select class="form-control" id="leadDiv" onchange="loadLeaderboard()" style="width:90px"><option value="">All Div</option></select>
+            <select class="form-control" id="leadSub" onchange="loadLeaderboard()" style="width:130px"><option value="">All Subjects</option></select>
+          </div>
+        </div>
+        <div class="card"><div class="card-body"><div class="table-wrap"><table class="table"><thead><tr><th>Rank</th><th>Student</th><th>Class & Div</th><th>Total Marks</th><th>Avg %</th></tr></thead><tbody id="leaderTable"><tr><td colspan="5"><div class="empty-state"><div class="empty-icon">🏆</div><div class="empty-title">No data yet</div></div></td></tr></tbody></table></div></div></div>
       </div>
 
       <!-- Certificates -->
@@ -132,9 +139,6 @@ let currentTest = null;
 let examTimer = null;
 let timeLeft = 0;
 let answers = {};
-let mediaRecorder = null;
-let recordedChunks = [];
-window._examStream = null;
 
 onAuthStateChanged(auth, async (u) => {
   if (!u) { window.location.href = 'index.html'; return; }
@@ -306,25 +310,7 @@ window.startTest = async (testId) => {
     console.log('Fullscreen failed:', e);
   }
 
-  try {
-    window._examStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
-    recordedChunks = [];
-    mediaRecorder = new MediaRecorder(window._examStream, { mimeType: 'video/webm' });
-    mediaRecorder.ondataavailable = e => { if (e.data.size > 0) recordedChunks.push(e.data); };
-    mediaRecorder.start();
-    
-    window._examStream.getVideoTracks()[0].onended = () => {
-      if (currentTest) {
-        alert("TEST BLOCKED: Screen sharing was forcibly stopped. Test will auto-submit.");
-        submitExam(true);
-      }
-    };
-  } catch (err) {
-    alert("Permission to record screen is mandatory for this exam.");
-    if (document.fullscreenElement) try { document.exitFullscreen(); } catch (ex){}
-    currentTest = null;
-    return;
-  }
+
 
   window._proctorVis = () => {
     if (document.visibilityState === 'hidden' && currentTest) {
@@ -488,32 +474,7 @@ window.submitExam = async (isAutoSub = false) => {
     document.body.style.pointerEvents = 'auto';
   }
 
-  let videoUrl = '';
-  if (mediaRecorder && mediaRecorder.state !== 'inactive') {
-    showToast('Processing screen recording...', 'info');
-    await new Promise(resolve => {
-      mediaRecorder.onstop = () => resolve();
-      mediaRecorder.stop();
-    });
-  }
 
-  if (window._examStream) {
-    window._examStream.getTracks().forEach(t => t.stop());
-    window._examStream = null;
-  }
-
-  if (recordedChunks.length > 0) {
-    showToast('Uploading proctoring video securely... This may take a minute.', 'info');
-    const blob = new Blob(recordedChunks, { type: 'video/webm' });
-    const vidRef = ref(storage, `recordings/${uid}_${currentTest.id}_${Date.now()}.webm`);
-    try {
-      await uploadBytes(vidRef, blob);
-      videoUrl = await getDownloadURL(vidRef);
-    } catch(e) {
-      console.error('Video upload fail:', e);
-      showToast('Video upload failed, but test submission will continue.', 'warning');
-    }
-  }
 
   const resultData = {
     testId: currentTest.id,
@@ -530,7 +491,6 @@ window.submitExam = async (isAutoSub = false) => {
     answers: { ...answers },
     status: 'pending',
     isEvaluated: false,
-    recordingUrl: videoUrl,
     submittedAt: serverTimestamp()
   };
 
@@ -647,19 +607,49 @@ async function loadLeaderboard() {
     snap = { empty: true, forEach: () => {} };
   }
 
-  const studentMap = {}; // Will hold max finalScore per student
+  const fClass = document.getElementById('leadClass').value;
+  const fDiv = document.getElementById('leadDiv').value;
+  const fSub = document.getElementById('leadSub').value;
+
+  const studentMap = {}; 
+  const classes = new Set();
+  const divisions = new Set();
+  const subjects = new Set();
+
   snap.forEach(d => {
     const r = d.data();
-    const fScore = r.finalScore || r.score || 0;
-    if (!studentMap[r.studentId] || studentMap[r.studentId].finalScore < fScore) {
-      studentMap[r.studentId] = { name: r.studentName || 'Student', finalScore: fScore, percentage: r.percentage || 0 };
+    if (r.className) classes.add(r.className);
+    if (r.division) divisions.add(r.division);
+    if (r.subject) subjects.add(r.subject);
+
+    // Apply filters
+    if (fClass && r.className !== fClass) return;
+    if (fDiv && r.division !== fDiv) return;
+    if (fSub && r.subject !== fSub) return;
+
+    if (!studentMap[r.studentId]) {
+      studentMap[r.studentId] = { name: r.studentName || 'Student', cls: r.className, div: r.division, total: 0, count: 0, sumPct: 0 };
     }
+    studentMap[r.studentId].total += (r.finalScore || r.score || 0);
+    studentMap[r.studentId].count++;
+    studentMap[r.studentId].sumPct += (r.percentage || 0);
   });
 
-  const entries = Object.entries(studentMap).map(([id, student]) => ({ id, name: student.name, score: student.finalScore, percentage: student.percentage })).sort((a, b) => b.score - a.score);
+  // Populate Filter selects if they are empty (only on first load)
+  const cSel = document.getElementById('leadClass');
+  if (cSel.options.length <= 1) {
+    [...classes].sort().forEach(c => cSel.innerHTML += `<option value="${c}">${c}</option>`);
+    [...divisions].sort().forEach(d => document.getElementById('leadDiv').innerHTML += `<option value="${d}">${d}</option>`);
+    [...subjects].sort().forEach(s => document.getElementById('leadSub').innerHTML += `<option value="${s}">${s}</option>`);
+  }
+
+  const entries = Object.entries(studentMap).map(([id, s]) => ({ 
+    id, name: s.name, cls: s.cls, div: s.div, score: s.total, avg: Math.round(s.sumPct / s.count) 
+  })).sort((a, b) => b.score - a.score);
+
   const tbody = document.getElementById('leaderTable');
   if (!entries.length) {
-    tbody.innerHTML = '<tr><td colspan="4"><div class="empty-state"><div class="empty-title">No evaluated exams yet</div></div></td></tr>';
+    tbody.innerHTML = '<tr><td colspan="5"><div class="empty-state"><div class="empty-title">No results found for these filters</div></div></td></tr>';
     return;
   }
 
@@ -669,7 +659,13 @@ async function loadLeaderboard() {
     const rank = index + 1;
     if (entry.id === uid) document.getElementById('sRank').textContent = '#' + rank;
     const isMe = entry.id === uid;
-    tbody.innerHTML += '<tr style="' + (isMe ? 'background:rgba(99,102,241,0.08)' : '') + '"><td>' + rank + '</td><td><strong>' + entry.name + '</strong>' + (isMe ? ' <span class="badge badge-primary">You</span>' : '') + '</td><td style="font-weight:600">' + entry.score + ' marks</td><td>' + entry.percentage + '%</td></tr>';
+    tbody.innerHTML += `<tr style="${isMe ? 'background:rgba(99,102,241,0.08)' : ''}">
+      <td>${rank}</td>
+      <td><strong>${entry.name}</strong>${isMe ? ' <span class="badge badge-primary">You</span>' : ''}</td>
+      <td>${entry.cls || '-'}${entry.div ? ' ('+entry.div+')' : ''}</td>
+      <td style="font-weight:600">${entry.score} marks</td>
+      <td style="color:#6366f1;font-weight:700">${entry.avg}%</td>
+    </tr>`;
   });
 }
 

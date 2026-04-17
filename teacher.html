@@ -43,6 +43,8 @@
         <div class="nav-section-title">Analysis</div>
         <button class="nav-item" id="navAnalytics" onclick="showSection('secAnalytics','navAnalytics')"><span
             class="nav-icon">📈</span>Analytics</button>
+        <button class="nav-item" id="navLeader" onclick="showSection('secLeader','navLeader')"><span
+            class="nav-icon">🏆</span>Leaderboard</button>
         <button class="nav-item" id="navResults" onclick="showSection('secResults','navResults')"><span
             class="nav-icon">📋</span>Results</button>
         <button class="nav-item" id="navEval" onclick="showSection('secEval','navEval')"><span
@@ -137,6 +139,19 @@
           </div>
         </div>
 
+        <!-- Leaderboard -->
+        <div class="section hidden" id="secLeader">
+          <div class="flex-between" style="margin-bottom:20px">
+            <h2 style="font-size:1.3rem">🏆 Student Leaderboard</h2>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <select class="form-control" id="leadClass" onchange="loadLeaderboard()" style="width:110px"><option value="">All Classes</option></select>
+              <select class="form-control" id="leadDiv" onchange="loadLeaderboard()" style="width:90px"><option value="">All Div</option></select>
+              <select class="form-control" id="leadSub" onchange="loadLeaderboard()" style="width:130px"><option value="">All Subjects</option></select>
+            </div>
+          </div>
+          <div class="card"><div class="card-body"><div class="table-wrap"><table class="table"><thead><tr><th>Rank</th><th>Student</th><th>Class & Div</th><th>Total Marks</th><th>Avg %</th></tr></thead><tbody id="leaderTable"><tr><td colspan="5"><div class="empty-state">No data found</div></td></tr></tbody></table></div></div></div>
+        </div>
+
         <!-- Students -->
         <div class="section hidden" id="secStudents">
           <div class="flex-between" style="margin-bottom:20px">
@@ -154,6 +169,7 @@
                       <th>Class</th>
                       <th>Division</th>
                       <th>Tests Taken</th>
+                      <th>Avg %</th>
                     </tr>
                   </thead>
                   <tbody id="studentsTable"></tbody>
@@ -510,6 +526,7 @@
     let schoolName = '';
     let myClass = '';
     let myDiv = '';
+    let myAssignments = [];
     let questions = [];
     let qCounter = 0;
 
@@ -529,10 +546,10 @@
         myDiv = (userData.division || '').toUpperCase();
 
         if (schoolId && (!myClass || !myDiv)) {
-          const assignmentId = schoolId + '_' + (userData.email || '').replace(/[@.]/g, '_');
-          const assignmentSnap = await getDoc(doc(db, 'teachers', assignmentId));
-          if (assignmentSnap.exists()) {
-            const assignment = assignmentSnap.data();
+          const assignmentsSnap = await getDocs(query(collection(db, 'teachers'), where('schoolId', '==', schoolId), where('email', '==', u.email)));
+          myAssignments = assignmentsSnap.docs.map(d => d.data());
+          if (myAssignments.length > 0) {
+            const assignment = myAssignments[0];
             myClass = myClass || assignment.className || '';
             myDiv = myDiv || (assignment.division || '').toUpperCase();
             schoolName = schoolName || assignment.schoolName || '';
@@ -568,6 +585,7 @@
         { name: 'Bank', fn: loadBank },
         { name: 'Results', fn: loadResults },
         { name: 'Evaluations', fn: loadEvaluations },
+        { name: 'Leaderboard', fn: loadLeaderboard },
         { name: 'Stats', fn: loadDashStats }
       ];
 
@@ -632,21 +650,33 @@
         return;
       }
 
-      const testsByStudent = {};
+      const studentStats = {};
       resultSnap.forEach(d => {
         const r = d.data();
         if (!r.studentId) return;
-        testsByStudent[r.studentId] = (testsByStudent[r.studentId] || 0) + 1;
+        if (!studentStats[r.studentId]) studentStats[r.studentId] = { count: 0, sumPct: 0 };
+        studentStats[r.studentId].count++;
+        studentStats[r.studentId].sumPct += (r.percentage || 0);
       });
 
       tbody.innerHTML = '';
       studentSnap.forEach(d => {
         const s = d.data();
         if (s.role !== 'student') return;
-        if (myClass && s.className !== myClass) return;
-        if (myDiv && s.division !== myDiv) return;
+        const hasAssignment = myAssignments.some(a => a.className === s.className && a.division === (s.division || '').toUpperCase());
+        if (!hasAssignment && myAssignments.length > 0) return;
 
-        tbody.innerHTML += '<tr><td><strong>' + (s.displayName || '-') + '</strong></td><td>' + (s.email || '-') + '</td><td>' + (s.className || '-') + '</td><td><span class="badge badge-primary">' + (s.division || '-') + '</span></td><td>' + (testsByStudent[d.id] || 0) + '</td></tr>';
+        const stats = studentStats[d.id] || { count: 0, sumPct: 0 };
+        const avg = stats.count > 0 ? Math.round(stats.sumPct / stats.count) : 0;
+
+        tbody.innerHTML += `<tr>
+          <td><strong>${s.displayName || '-'}</strong></td>
+          <td>${s.email || '-'}</td>
+          <td>${s.className || '-'}</td>
+          <td><span class="badge badge-primary">${s.division || '-'}</span></td>
+          <td>${stats.count}</td>
+          <td><span class="badge ${avg >= 40 ? 'badge-success' : 'badge-danger'}">${avg}%</span></td>
+        </tr>`;
       });
     }
 
@@ -938,9 +968,7 @@
       const container = document.getElementById('gradeContainer');
       
       let topMeta = `<strong>${result.studentName}</strong> | ${result.testName}`;
-      if (result.recordingUrl) {
-         topMeta += ` <span style="float:right"><a href="${result.recordingUrl}" target="_blank" class="badge badge-error" style="text-decoration:none;font-weight:bold">🔴 View Screen Recording</a></span>`;
-      }
+
       
       let h = `<div style="margin-bottom:20px;padding:12px;background:rgba(99,102,241,0.05);border-radius:10px;line-height:2">
     ${topMeta}
@@ -1143,8 +1171,8 @@
         let myStudentCount = 0;
         studentSnap.forEach(d => {
           const s = d.data();
-          if (myClass && s.className !== myClass) return;
-          if (myDiv && s.division !== myDiv) return;
+          const hasAssignment = myAssignments.some(a => a.className === s.className && a.division === (s.division || '').toUpperCase());
+          if (!hasAssignment && myAssignments.length > 0) return;
           myStudentCount++;
         });
 
@@ -1242,6 +1270,65 @@
           data: { labels: ['0-20%', '20-40%', '40-60%', '60-80%', '80-100%'], datasets: [{ label: 'Students', data: scoreBuckets, backgroundColor: ['#ef4444', '#f59e0b', '#fbbf24', '#10b981', '#6366f1'], borderRadius: 8 }] },
           options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { ticks: { stepSize: 1 } } } }
         });
+      }
+
+      async function loadLeaderboard() {
+        const snap = await getDocs(query(collection(db, 'results'), where('schoolId', '==', schoolId), where('status', '==', 'graded')));
+        const fClass = document.getElementById('leadClass').value;
+        const fDiv = document.getElementById('leadDiv').value;
+        const fSub = document.getElementById('leadSub').value;
+
+        const studentMap = {}; 
+        const classes = new Set();
+        const divisions = new Set();
+        const subjects = new Set();
+
+        snap.forEach(d => {
+          const r = d.data();
+          // Filter by teacher's assignments first (Teacher should only see their students usually, or schoolwide?)
+          // Let's allow teacher to see all in their school, but filter by their assigned classes by default if they want
+          if (r.className) classes.add(r.className);
+          if (r.division) divisions.add(r.division);
+          if (r.subject) subjects.add(r.subject);
+
+          if (fClass && r.className !== fClass) return;
+          if (fDiv && r.division !== fDiv) return;
+          if (fSub && r.subject !== fSub) return;
+
+          if (!studentMap[r.studentId]) {
+            studentMap[r.studentId] = { name: r.studentName || 'Student', cls: r.className, div: r.division, total: 0, count: 0, sumPct: 0 };
+          }
+          studentMap[r.studentId].total += (r.finalScore || r.score || 0);
+          studentMap[r.studentId].count++;
+          studentMap[r.studentId].sumPct += (r.percentage || 0);
+        });
+
+        const cSel = document.getElementById('leadClass');
+        if (cSel.options.length <= 1) {
+          [...classes].sort().forEach(c => cSel.innerHTML += `<option value="${c}">${c}</option>`);
+          [...divisions].sort().forEach(d => document.getElementById('leadDiv').innerHTML += `<option value="${d}">${d}</option>`);
+          [...subjects].sort().forEach(s => document.getElementById('leadSub').innerHTML += `<option value="${s}">${s}</option>`);
+        }
+
+        const entries = Object.entries(studentMap).map(([id, s]) => ({ 
+          name: s.name, cls: s.cls, div: s.div, score: s.total, avg: Math.round(s.sumPct / s.count) 
+        })).sort((a, b) => b.score - a.score);
+
+        const tbody = document.getElementById('leaderTable');
+        if (!entries.length) {
+          tbody.innerHTML = '<tr><td colspan="5"><div class="empty-state">No results found</div></td></tr>';
+          return;
+        }
+
+        tbody.innerHTML = entries.map((e, i) => `
+          <tr>
+            <td>${i + 1}</td>
+            <td><strong>${e.name}</strong></td>
+            <td>${e.cls || '-'}${e.div ? ' ('+e.div+')' : ''}</td>
+            <td style="font-weight:600">${e.score} marks</td>
+            <td style="color:#6366f1;font-weight:700">${e.avg}%</td>
+          </tr>
+        `).join('');
       }
 
       async function loadResults() {
