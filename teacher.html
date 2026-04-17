@@ -498,8 +498,6 @@
     let qCounter = 0;
 
     onAuthStateChanged(auth, async (u) => {
-      document.getElementById('pageLoader').style.opacity = '0';
-      setTimeout(() => document.getElementById('pageLoader').style.display = 'none', 500);
       if (!u) { window.location.href = 'index.html'; return; }
 
       try {
@@ -535,6 +533,12 @@
       } catch (e) {
         console.error('teacher auth:', e);
         showToast('Could not load teacher dashboard.', 'error');
+      } finally {
+        const pl = document.getElementById('pageLoader');
+        if (pl) {
+          pl.style.opacity = '0';
+          setTimeout(() => pl.style.display = 'none', 500);
+        }
       }
     });
 

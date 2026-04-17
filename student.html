@@ -128,8 +128,6 @@ let timeLeft = 0;
 let answers = {};
 
 onAuthStateChanged(auth, async (u) => {
-  document.getElementById('pageLoader').style.opacity = '0';
-  setTimeout(() => document.getElementById('pageLoader').style.display = 'none', 500);
   if (!u) { window.location.href = 'index.html'; return; }
 
   try {
@@ -155,6 +153,12 @@ onAuthStateChanged(auth, async (u) => {
   } catch (e) {
     console.error('student auth:', e);
     showToast('Could not load student dashboard.', 'error');
+  } finally {
+    const pl = document.getElementById('pageLoader');
+    if (pl) {
+      pl.style.opacity = '0';
+      setTimeout(() => pl.style.display = 'none', 500);
+    }
   }
 });
 
@@ -174,8 +178,15 @@ async function loadAvailableTests() {
       // Fallback 1: No orderBy
       snap = await getDocs(query(collection(db, 'tests'), where('schoolId', '==', schoolId), where('status', '==', 'published')));
     } catch (e2) {
-      // Fallback 2: Minimal query
-      snap = await getDocs(query(collection(db, 'tests'), where('schoolId', '==', schoolId)));
+      // Fallback 2: Basic query
+      try {
+        snap = await getDocs(query(collection(db, 'tests'), where('schoolId', '==', schoolId)));
+      } catch (e3) {
+        console.error('Test query fail:', e3);
+        const container = document.getElementById('availableTests');
+        if (container) container.innerHTML = '<div class="empty-state">Could not load tests.</div>';
+        return;
+      }
     }
   }
 
@@ -493,9 +504,15 @@ async function loadMyResults() {
 }
 
 async function loadLeaderboard() {
-  const snap = schoolId
-    ? await getDocs(query(collection(db, 'results'), where('schoolId', '==', schoolId)))
-    : await getDocs(collection(db, 'results'));
+  let snap;
+  try {
+    snap = schoolId
+      ? await getDocs(query(collection(db, 'results'), where('schoolId', '==', schoolId)))
+      : { empty: true, forEach: () => {} };
+  } catch (err) {
+    console.warn('Leaderboard fetch failed (likely missing index):', err);
+    snap = { empty: true, forEach: () => {} };
+  }
 
   const studentMap = {};
   snap.forEach(d => {
