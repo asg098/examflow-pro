@@ -2,36 +2,42 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
+    
+    // --- BASIC HELPERS ---
     function signedIn() {
       return request.auth != null;
     }
-
-    function currentUser() {
-      return signedIn()
-        ? get(/databases/$(database)/documents/users/$(request.auth.uid)).data
-        : null;
+    
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
     }
-
+    
     function hasUserDoc() {
-      return signedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid));
+      return exists(/databases/$(database)/documents/users/$(request.auth.uid));
     }
 
+    // --- ROLE HELPERS ---
+    // Note: We use getUserData() carefully to stay under the 10 get() call limit.
     function currentRole() {
-      return hasUserDoc()
-        ? currentUser().role
-        : null;
+      return hasUserDoc() ? getUserData().role : null;
+    }
+    
+    function isAdmin() {
+      return signedIn() && currentRole() == 'admin';
     }
 
-    function isAdmin() {
-      return currentRole() == 'admin';
+    // --- SCHOOL HELPERS ---
+    function userSchoolId() {
+      return hasUserDoc() ? getUserData().schoolId : null;
     }
 
     function sameSchool(schoolId) {
-      return hasUserDoc() && schoolId != null && currentUser().schoolId == schoolId;
+      return signedIn() && schoolId != null && userSchoolId() == schoolId;
     }
 
     function managesSchool(schoolId) {
-      return isAdmin() || (currentRole() == 'school' && sameSchool(schoolId));
+      let role = currentRole();
+      return isAdmin() || (role == 'school' && sameSchool(schoolId));
     }
 
     function teachesSchool(schoolId) {
@@ -39,16 +45,11 @@ service cloud.firestore {
     }
 
     function schoolMember(schoolId) {
-      return managesSchool(schoolId) || teachesSchool(schoolId) || (currentRole() in ['student', 'parent'] && sameSchool(schoolId));
+      let role = currentRole();
+      return role != null && (isAdmin() || sameSchool(schoolId));
     }
 
-    function schoolFromRequest() {
-      return request.resource.data.schoolId;
-    }
-
-    function schoolFromResource() {
-      return resource.data.schoolId;
-    }
+    // --- RULES ---
 
     match /schools/{schoolId} {
       allow read: if true;
@@ -58,50 +59,54 @@ service cloud.firestore {
 
     match /classes/{classId} {
       allow read: if true;
-      allow create, update, delete: if managesSchool(schoolFromRequest()) || managesSchool(schoolFromResource());
+      allow create, update, delete: if managesSchool(request.resource.data.schoolId) || managesSchool(resource.data.schoolId);
     }
 
     match /users/{userId} {
       allow read: if signedIn() && (
         request.auth.uid == userId ||
         isAdmin() ||
-        (resource.data.schoolId != null && schoolMember(resource.data.schoolId))
+        (resource.data.schoolId != null && schoolMember(resource.data.schoolId)) ||
+        (currentRole() == 'parent' && getUserData().childEmail == resource.data.email)
       );
 
       allow create: if signedIn() && (
         request.auth.uid == userId ||
         isAdmin() ||
-        managesSchool(schoolFromRequest()) ||
-        (teachesSchool(schoolFromRequest()) && request.resource.data.role == 'student')
+        managesSchool(request.resource.data.schoolId) ||
+        (teachesSchool(request.resource.data.schoolId) && request.resource.data.role == 'student')
       );
 
       allow update: if signedIn() && (
         request.auth.uid == userId ||
         isAdmin() ||
-        managesSchool(schoolFromRequest()) ||
-        managesSchool(schoolFromResource()) ||
-        (teachesSchool(schoolFromRequest()) && request.resource.data.role == 'student') ||
-        (teachesSchool(schoolFromResource()) && resource.data.role == 'student')
+        managesSchool(request.resource.data.schoolId) ||
+        managesSchool(resource.data.schoolId) ||
+        (teachesSchool(request.resource.data.schoolId) && request.resource.data.role == 'student') ||
+        (teachesSchool(resource.data.schoolId) && resource.data.role == 'student')
       );
 
-      allow delete: if isAdmin() || managesSchool(schoolFromResource());
+      allow delete: if isAdmin() || managesSchool(resource.data.schoolId);
     }
 
     match /teachers/{teacherId} {
-      allow read: if signedIn() && schoolMember(schoolFromResource());
-      allow create, update, delete: if managesSchool(schoolFromRequest()) || managesSchool(schoolFromResource());
+      allow read: if signedIn() && (
+        schoolMember(resource.data.schoolId) ||
+        getUserData().email == resource.data.email
+      );
+      allow create, update, delete: if managesSchool(request.resource.data.schoolId) || managesSchool(resource.data.schoolId);
     }
 
     match /tests/{testId} {
       allow read: if signedIn() && (
         isAdmin() ||
-        schoolMember(schoolFromResource()) ||
-        schoolMember(schoolFromRequest())
+        schoolMember(resource.data.schoolId) ||
+        schoolMember(request.resource.data.schoolId)
       );
       allow create, update, delete: if signedIn() && (
         isAdmin() ||
-        managesSchool(schoolFromRequest()) ||
-        teachesSchool(schoolFromRequest())
+        managesSchool(request.resource.data.schoolId) ||
+        teachesSchool(request.resource.data.schoolId)
       );
     }
 
@@ -110,18 +115,19 @@ service cloud.firestore {
         isAdmin() ||
         request.auth.uid == resource.data.studentId ||
         request.auth.uid == resource.data.teacherId ||
-        schoolMember(schoolFromResource())
+        schoolMember(resource.data.schoolId) ||
+        (currentRole() == 'parent' && getUserData().childEmail == resource.data.studentEmail)
       );
       allow create: if signedIn() && (
         isAdmin() ||
         request.auth.uid == request.resource.data.studentId ||
         request.auth.uid == request.resource.data.teacherId ||
-        schoolMember(schoolFromRequest())
+        schoolMember(request.resource.data.schoolId)
       );
       allow update, delete: if signedIn() && (
         isAdmin() ||
         request.auth.uid == resource.data.teacherId ||
-        managesSchool(schoolFromResource())
+        managesSchool(resource.data.schoolId)
       );
     }
 
@@ -129,14 +135,14 @@ service cloud.firestore {
       allow read: if signedIn() && (
         isAdmin() ||
         request.auth.uid == resource.data.teacherId ||
-        schoolMember(schoolFromResource())
+        schoolMember(resource.data.schoolId)
       );
       allow create, update, delete: if signedIn() && (
         isAdmin() ||
         request.auth.uid == request.resource.data.teacherId ||
         request.auth.uid == resource.data.teacherId ||
-        managesSchool(schoolFromRequest()) ||
-        managesSchool(schoolFromResource())
+        managesSchool(request.resource.data.schoolId) ||
+        managesSchool(resource.data.schoolId)
       );
     }
 
@@ -144,19 +150,15 @@ service cloud.firestore {
       allow read: if signedIn() && (
         isAdmin() ||
         request.auth.uid == resource.data.studentId ||
-        schoolMember(schoolFromResource())
+        schoolMember(resource.data.schoolId)
       );
       allow create: if signedIn() && (
         isAdmin() ||
         request.auth.uid == request.resource.data.studentId ||
         request.auth.uid == request.resource.data.teacherId ||
-        schoolMember(schoolFromRequest())
+        schoolMember(request.resource.data.schoolId)
       );
-      allow update, delete: if isAdmin() || managesSchool(schoolFromResource());
-    }
-
-    match /students/{studentId} {
-      allow read, write: if signedIn() && (isAdmin() || schoolMember(schoolFromResource()) || schoolMember(schoolFromRequest()));
+      allow update, delete: if isAdmin() || managesSchool(resource.data.schoolId);
     }
   }
 }

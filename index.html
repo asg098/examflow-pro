@@ -354,8 +354,25 @@ onAuthStateChanged(auth, async (user) => {
   if (user) {
     try {
       const userDoc = await getDoc(doc(db, 'users', user.uid));
-      if (userDoc.exists()) redirectToRole(userDoc.data().role);
-    } catch (e) { console.log(e); }
+      if (userDoc.exists()) {
+        const role = userDoc.data().role;
+        if (role) {
+          redirectToRole(role);
+        } else {
+          // Logged in but no role? Show signup to pick role
+          showSignup();
+          showToast('Please complete your profile registration.', 'info');
+        }
+      } else {
+        // Auth exists but no firestore doc? Show signup
+        showSignup();
+        document.getElementById('signupEmail').value = user.email || '';
+        document.getElementById('signupName').value = user.displayName || '';
+      }
+    } catch (e) { 
+      console.log('Auth check error:', e);
+      // If permission error here, it might be due to rules or missing doc
+    }
   }
 });
 
@@ -444,19 +461,23 @@ window.handleSignup = async (e) => {
 
     // 2. If school admin, create the school doc
     if (role === 'school') {
-      const schId = 'SCH_' + uid.substring(0, 8).toUpperCase();
+      const schId = generateSchoolId(uid);
+      
       // Update userData with the new schoolId
       userData.schoolId = schId;
-      await setDoc(doc(db, 'users', uid), userData); // Re-set with schoolId
+      await setDoc(doc(db, 'users', uid), userData, { merge: true });
 
       await setDoc(doc(db, 'schools', schId), {
+        id: schId,
         name: schoolName,
         adminUid: uid,
         adminEmail: email,
+        city: '', // Admin can update this in branding
         createdAt: serverTimestamp(),
         classCount: 0,
         teacherCount: 0,
-        studentCount: 0
+        studentCount: 0,
+        active: true
       });
     }
 

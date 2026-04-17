@@ -24,6 +24,7 @@
       <div class="nav-section-title">Analysis</div>
       <button class="nav-item" id="navAnalytics" onclick="showSection('secAnalytics','navAnalytics')"><span class="nav-icon">📈</span>Analytics</button>
       <button class="nav-item" id="navResults" onclick="showSection('secResults','navResults')"><span class="nav-icon">📋</span>Results</button>
+      <button class="nav-item" id="navEval" onclick="showSection('secEval','navEval')"><span class="nav-icon">⚖️</span>Evaluations <span class="badge-danger" id="evalCount" style="display:none">0</span></button>
     </nav>
     <div class="sidebar-footer">
       <div class="user-card"><div class="user-avatar" id="userAvatar">T</div><div><div class="user-name" id="userName">Teacher</div><div class="user-role" id="userSchoolName">School</div></div></div>
@@ -132,6 +133,12 @@
         <div class="card"><div class="card-body"><div class="table-wrap"><table class="table"><thead><tr><th>Student</th><th>Test</th><th>Score</th><th>Percentage</th><th>Status</th><th>Date</th></tr></thead><tbody id="resultsTable"><tr><td colspan="6"><div class="empty-state"><div class="empty-icon">📋</div><div class="empty-title">No results yet</div></div></td></tr></tbody></table></div></div></div>
       </div>
 
+      <!-- Evaluations -->
+      <div class="section hidden" id="secEval">
+        <h2 style="font-size:1.3rem;margin-bottom:20px">Pending Evaluations</h2>
+        <div class="card"><div class="card-body"><div class="table-wrap"><table class="table"><thead><tr><th>Student</th><th>Test</th><th>Submitted</th><th>Action</th></tr></thead><tbody id="evalTable"><tr><td colspan="4"><div class="empty-state"><div class="empty-icon">⚖️</div><div class="empty-title">All caught up!</div><div class="empty-desc">No tests pending manual grading.</div></div></td></tr></tbody></table></div></div></div>
+      </div>
+
     </div>
   </main>
 </div>
@@ -143,6 +150,9 @@
 
 <!-- Import from Bank Modal -->
 <div class="modal-overlay" id="importBankModal"><div class="modal"><div class="modal-header"><h3 class="modal-title">Import Questions</h3><button class="modal-close" onclick="closeModal('importBankModal')">✕</button></div><div class="modal-body"><div id="importBankList"><p>Loading bank...</p></div></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal('importBankModal')">Close</button></div></div></div>
+
+<!-- Manual Grading Modal -->
+<div class="modal-overlay" id="gradeModal"><div class="modal" style="max-width:800px"><div class="modal-header"><h3 class="modal-title">Evaluate Submission</h3><button class="modal-close" onclick="closeModal('gradeModal')">✕</button></div><div class="modal-body" id="gradeContainer"></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal('gradeModal')">Cancel</button><button class="btn btn-primary" onclick="submitGrades()">Submit Grades</button></div></div></div>
 
 <script src="js/shared.js"></script>
 <script type="module">
@@ -210,12 +220,28 @@ onAuthStateChanged(auth, async (u) => {
 window.signOut = () => fbSignOut(auth).then(() => window.location.href = 'index.html');
 
 async function loadAll() {
-  await Promise.all([loadClasses(), loadStudents(), loadTests(), loadBank(), loadResults(), loadDashStats()]);
+  const loaders = [
+    { name: 'Classes', fn: loadClasses },
+    { name: 'Students', fn: loadStudents },
+    { name: 'Tests', fn: loadTests },
+    { name: 'Bank', fn: loadBank },
+    { name: 'Results', fn: loadResults },
+    { name: 'Stats', fn: loadDashStats }
+  ];
+
+  await Promise.all(loaders.map(async (l) => {
+    try {
+      await l.fn();
+    } catch (err) {
+      console.warn(`Loader '${l.name}' failed:`, err);
+    }
+  }));
   renderQuestions();
 }
 
 async function loadClasses() {
   const select = document.getElementById('testClass');
+  if (!select) return;
   select.innerHTML = '';
   if (!schoolId) {
     select.innerHTML = '<option value="">No classes found</option>';
@@ -224,12 +250,19 @@ async function loadClasses() {
 
   let snap;
   try {
+    // Requires index for schoolId + name
     snap = await getDocs(query(collection(db, 'classes'), where('schoolId', '==', schoolId), orderBy('name')));
   } catch (err) {
-    snap = await getDocs(query(collection(db, 'classes'), where('schoolId', '==', schoolId)));
+    try {
+      snap = await getDocs(query(collection(db, 'classes'), where('schoolId', '==', schoolId)));
+    } catch (e2) {
+      console.error('loadClasses failed:', e2);
+      return;
+    }
   }
+  
   if (snap.empty) {
-    select.innerHTML = '<option value="">No classes found</option>';
+    select.innerHTML = '<option value="">No classes added yet</option>';
     return;
   }
 
@@ -241,17 +274,22 @@ async function loadClasses() {
 }
 
 async function loadDashStats() {
-  const studentConstraints = [where('schoolId', '==', schoolId), where('role', '==', 'student')];
-  if (myClass) studentConstraints.push(where('className', '==', myClass));
-  if (myDiv) studentConstraints.push(where('division', '==', myDiv));
-
   const [studentSnap, testSnap, resultSnap] = await Promise.all([
-    getDocs(query(collection(db, 'users'), ...studentConstraints)),
+    getDocs(query(collection(db, 'users'), where('schoolId', '==', schoolId), where('role', '==', 'student'))),
     getDocs(query(collection(db, 'tests'), where('teacherId', '==', uid))),
     getDocs(query(collection(db, 'results'), where('teacherId', '==', uid)))
   ]);
 
-  document.getElementById('sMyStudents').textContent = studentSnap.size;
+  // Manual filter for class/division in stats if needed
+  let myStudentCount = 0;
+  studentSnap.forEach(d => {
+    const s = d.data();
+    if (myClass && s.className !== myClass) return;
+    if (myDiv && s.division !== myDiv) return;
+    myStudentCount++;
+  });
+
+  document.getElementById('sMyStudents').textContent = myStudentCount;
   document.getElementById('sMyTests').textContent = testSnap.size;
 
   let total = 0;
@@ -333,14 +371,15 @@ async function loadDashStats() {
 }
 
 async function loadStudents() {
-  const constraints = [where('schoolId', '==', schoolId), where('role', '==', 'student')];
-  if (myClass) constraints.push(where('className', '==', myClass));
-  if (myDiv) constraints.push(where('division', '==', myDiv));
+  let studentSnap;
+  try {
+    // Try primary
+    studentSnap = await getDocs(query(collection(db, 'users'), where('schoolId', '==', schoolId), where('role', '==', 'student')));
+  } catch (err) {
+    studentSnap = await getDocs(query(collection(db, 'users'), where('schoolId', '==', schoolId)));
+  }
 
-  const [studentSnap, resultSnap] = await Promise.all([
-    getDocs(query(collection(db, 'users'), ...constraints)),
-    getDocs(query(collection(db, 'results'), where('teacherId', '==', uid)))
-  ]);
+  const resultSnap = await getDocs(query(collection(db, 'results'), where('teacherId', '==', uid)));
 
   const tbody = document.getElementById('studentsTable');
   if (studentSnap.empty) {
@@ -358,6 +397,10 @@ async function loadStudents() {
   tbody.innerHTML = '';
   studentSnap.forEach(d => {
     const s = d.data();
+    if (s.role !== 'student') return;
+    if (myClass && s.className !== myClass) return;
+    if (myDiv && s.division !== myDiv) return;
+
     tbody.innerHTML += '<tr><td><strong>' + (s.displayName || '-') + '</strong></td><td>' + (s.email || '-') + '</td><td>' + (s.className || '-') + '</td><td><span class="badge badge-primary">' + (s.division || '-') + '</span></td><td>' + (testsByStudent[d.id] || 0) + '</td></tr>';
   });
 }
@@ -387,12 +430,6 @@ window.createStudent = async () => {
   btn.textContent = 'Creating...';
 
   try {
-    const existing = await getDocs(query(collection(db, 'users'), where('email', '==', email)));
-    if (!existing.empty) {
-      showToast('Account already exists in database.', 'warning');
-      return;
-    }
-
     const cred = await createUserWithEmailAndPassword(provisionAuth, email, password);
     await setDoc(doc(db, 'users', cred.user.uid), {
       uid: cred.user.uid,
@@ -415,9 +452,10 @@ window.createStudent = async () => {
     await loadStudents();
   } catch (err) {
     console.error(err);
-    let msg = 'Failed to create student';
-    if (err.code === 'auth/email-already-in-use') msg = 'This email is already registered.';
+    let msg = err.message || 'Failed to create student';
+    if (err.code === 'auth/email-already-in-use') msg = 'This email is already registered in ExamFlow.';
     else if (err.code === 'auth/weak-password') msg = 'Password is too weak.';
+    else if (err.code === 'permission-denied') msg = 'Permission denied by security rules. Ensure you are assigned to a school.';
     showToast(msg, 'error');
   } finally {
     btn.disabled = false;
@@ -494,7 +532,7 @@ window.publishTest = async () => {
     if ((questions[i].type === 'mcq' || questions[i].type === 'multi') && !questions[i].correct) { showToast('Set the correct answer for question ' + (i + 1), 'warning'); return; }
   }
 
-  await addDoc(collection(db, 'tests'), {
+  const testRef = await addDoc(collection(db, 'tests'), {
     name,
     subject,
     totalMarks: +document.getElementById('testMarks').value || 100,
@@ -506,15 +544,25 @@ window.publishTest = async () => {
     instructions: document.getElementById('testInstructions').value,
     shuffle: document.getElementById('testShuffle').checked,
     negativeMarking: document.getElementById('testNegative').checked,
-    questions: JSON.parse(JSON.stringify(questions)),
+    questions: questions.map(q => {
+      const qCopy = { ...q };
+      delete qCopy.correct; // CRITICAL: Strip answers from student view
+      return qCopy;
+    }),
     status: 'published',
     teacherId: uid,
     teacherName,
     schoolId,
     schoolName,
     createdAt: serverTimestamp(),
-    attemptCount: 0
+    attemptCount: 0,
+    hasDescriptive: questions.some(q => q.type === 'descriptive')
   });
+
+  // Store keys in a separate document for security
+  const answerKeys = {};
+  questions.forEach((q, i) => { if (q.correct) answerKeys[q.id || i] = q.correct; });
+  await setDoc(doc(db, 'tests', testRef.id, 'private', 'keys'), { keys: answerKeys });
 
   questions = [];
   qCounter = 0;
@@ -593,9 +641,9 @@ window.importToTest = async (id) => {
       id: 'q' + qCounter,
       type: q.type,
       text: q.question,
-      marks: q.type === 'descriptive' ? 10 : q.type === 'short' ? 5 : 2,
-      options: (q.type === 'mcq' || q.type === 'multi') ? ['', '', '', ''] : null,
-      correct: q.answer || (q.type === 'true-false' ? 'true' : ''),
+      marks: q.marks || (q.type === 'descriptive' ? 10 : q.type === 'short' ? 5 : 2),
+      options: (q.type === 'mcq' || q.type === 'multi') ? (Array.isArray(q.options) ? [...q.options] : ['', '', '', '']) : null,
+      correct: q.answer || q.correct || (q.type === 'true-false' ? 'true' : ''),
       difficulty: q.difficulty || 'medium'
     });
     renderQuestions();

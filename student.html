@@ -159,27 +159,45 @@ async function loadAll() {
 }
 
 async function loadAvailableTests() {
-  const snap = schoolId
-    ? await getDocs(query(collection(db, 'tests'), where('schoolId', '==', schoolId), where('status', '==', 'published')))
-    : await getDocs(query(collection(db, 'tests'), where('status', '==', 'published')));
+  let snap;
+  try {
+    // Try primary query (requires index)
+    snap = await getDocs(query(collection(db, 'tests'), where('schoolId', '==', schoolId), where('status', '==', 'published'), orderBy('createdAt', 'desc')));
+  } catch (e) {
+    try {
+      // Fallback 1: No orderBy
+      snap = await getDocs(query(collection(db, 'tests'), where('schoolId', '==', schoolId), where('status', '==', 'published')));
+    } catch (e2) {
+      // Fallback 2: Minimal query
+      snap = await getDocs(query(collection(db, 'tests'), where('schoolId', '==', schoolId)));
+    }
+  }
 
   const container = document.getElementById('availableTests');
   container.innerHTML = '';
+  const sAvailEl = document.getElementById('sAvail');
 
   if (snap.empty) {
     container.innerHTML = '<div class="empty-state"><div class="empty-title">No tests available</div><div class="empty-desc">Your teachers have not published any tests yet</div></div>';
-    document.getElementById('sAvail').textContent = '0';
+    if (sAvailEl) sAvailEl.textContent = '0';
     return;
   }
 
   const eligibleTests = [];
   snap.forEach(d => {
     const test = d.data();
+    if (test.status !== 'published') return; // Manual filter for fallback 2
+    
     const testClass = (test.className || '').trim();
     const testDivision = (test.division || '').trim().toUpperCase();
+    
+    // Check if test is assigned to student's class/division
     const classMatches = !testClass || !className || testClass === className;
     const divisionMatches = !testDivision || !division || testDivision === division;
-    if (classMatches && divisionMatches) eligibleTests.push({ id: d.id, ...test });
+    
+    if (classMatches && divisionMatches) {
+      eligibleTests.push({ id: d.id, ...test });
+    }
   });
 
   if (!eligibleTests.length) {
@@ -275,7 +293,7 @@ window.startTest = async (testId) => {
     if (timeLeft <= 0) {
       clearInterval(examTimer);
       showToast('Time is up! Auto-submitting...', 'warning');
-      submitExam();
+      submitExam(true);
     }
   }, 1000);
 };
@@ -304,11 +322,11 @@ function updateTimerDisplay() {
   }
 }
 
-window.submitExam = async () => {
+window.submitExam = async (isAutoSub = false) => {
   if (examTimer) clearInterval(examTimer);
   if (!currentTest) return;
 
-  if (!confirm('Submit this test? You cannot change your answers after.')) {
+  if (!isAutoSub && !confirm('Submit this test? You cannot change your answers after.')) {
     examTimer = setInterval(() => {
       timeLeft--;
       updateTimerDisplay();

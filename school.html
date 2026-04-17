@@ -126,8 +126,13 @@ onAuthStateChanged(auth, async (u) => {
     if (!userSnap.exists() || userSnap.data().role !== 'school') { window.location.href = 'index.html'; return; }
     const userData = userSnap.data();
 
-    schoolId = userData.schoolId || u.uid;
+    schoolId = userData.schoolId || '';
     schoolName = userData.schoolName || '';
+
+    if (!schoolId && userData.role === 'school') {
+      // Fallback for older accounts or deterministic ID
+      schoolId = 'SCH_' + u.uid.substring(0, 10).toUpperCase();
+    }
 
     document.getElementById('userName').textContent = userData.displayName || 'School Admin';
     document.getElementById('userAvatar').textContent = (userData.displayName || 'S')[0].toUpperCase();
@@ -158,7 +163,21 @@ onAuthStateChanged(auth, async (u) => {
 window.signOut = () => fbSignOut(auth).then(() => window.location.href = 'index.html');
 
 async function loadAll() {
-  await Promise.all([loadClasses(), loadTeachers(), loadRegisteredTeachers(), loadStudents(), loadDashStats(), loadPerformance()]);
+  const loaders = [
+    { name: 'Stats', fn: loadDashStats },
+    { name: 'Classes', fn: loadClasses },
+    { name: 'Teachers', fn: loadTeachers },
+    { name: 'Students', fn: loadStudents },
+    { name: 'Performance', fn: loadPerformance }
+  ];
+
+  await Promise.all(loaders.map(async (l) => {
+    try {
+      await l.fn();
+    } catch (err) {
+      console.warn(`School Loader '${l.name}' failed:`, err);
+    }
+  }));
 }
 
 async function loadDashStats() {
@@ -453,14 +472,6 @@ window.createStudent = async () => {
   btn.textContent = 'Creating...';
 
   try {
-    // Check Firestore
-    const existing = await getDocs(query(collection(db, 'users'), where('email', '==', email)));
-    if (!existing.empty) {
-      showToast('User already exists', 'warning');
-      btn.disabled = false; btn.textContent = 'Create Student Account';
-      return;
-    }
-
     // Create in Auth (provisionApp)
     const cred = await createUserWithEmailAndPassword(provisionAuth, email, password);
     const uid = cred.user.uid;
