@@ -72,16 +72,24 @@
   </main>
 </div>
 
-<div class="modal-overlay" id="addSchoolModal"><div class="modal"><div class="modal-header"><h3 class="modal-title">Add School</h3><button class="modal-close" onclick="closeModal('addSchoolModal')">✕</button></div><div class="modal-body"><form class="auth-form" id="addSchoolForm"><div class="form-group"><label class="form-label">School Name</label><input class="form-control" id="schoolName" required/></div><div class="form-group"><label class="form-label">City</label><input class="form-control" id="schoolCity"/></div><div class="form-group"><label class="form-label">Admin Email</label><input type="email" class="form-control" id="schoolAdminEmail"/></div></form></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal('addSchoolModal')">Cancel</button><button class="btn btn-primary" onclick="addSchool()">Add School</button></div></div></div>
+<div class="modal-overlay" id="addSchoolModal"><div class="modal"><div class="modal-header"><h3 class="modal-title">Provision New School</h3><button class="modal-close" onclick="closeModal('addSchoolModal')">✕</button></div><div class="modal-body"><form class="auth-form" id="addSchoolForm"><div class="form-group"><label class="form-label">School Name</label><input class="form-control" id="schoolName" required placeholder="e.g. St. Xaviers High School"/></div><div class="form-group"><label class="form-label">City/Location</label><input class="form-control" id="schoolCity" required placeholder="e.g. Pune, Maharashtra"/></div><div class="form-group"><label class="form-label">Admin Email</label><input type="email" class="form-control" id="schoolAdminEmail" required placeholder="Email for the school head"/></div><div style="font-size:0.82rem;color:#818cf8;padding:12px;background:rgba(99,102,241,0.05);border-radius:8px">ℹ️ A secure temporary password will be automatically generated and shown to you after creation.</div></form></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal('addSchoolModal')">Cancel</button><button class="btn btn-primary" onclick="addSchool()">Create & Provision</button></div></div></div>
+
+<!-- Credentials Reveal Modal -->
+<div class="modal-overlay" id="credModal"><div class="modal"><div class="modal-header"><h3 class="modal-title">School Provisioned!</h3></div><div class="modal-body text-center"><p style="margin-bottom:15px">The school has been successfully registered. Share these credentials with the school head:</p><div style="background:rgba(255,255,255,0.03);padding:20px;border-radius:12px;border:1px solid rgba(255,255,255,0.08);margin-bottom:20px"><div style="font-size:0.85rem;color:#94a3b8;margin-bottom:8px">Admin Email</div><div style="font-weight:700;font-size:1.1rem;margin-bottom:15px" id="revealEmail">—</div><div style="font-size:0.85rem;color:#94a3b8;margin-bottom:8px">Temporary Password</div><div style="font-weight:700;font-size:1.3rem;color:#10b981;letter-spacing:1px" id="revealPass">—</div></div><button class="btn btn-secondary w-full" onclick="copyCreds()">📋 Copy Credentials</button></div><div class="modal-footer"><button class="btn btn-primary w-full" onclick="closeModal('credModal')">Done</button></div></div></div>
 
 <script src="js/shared.js"></script>
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getAuth, onAuthStateChanged, signOut as fbSignOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+import { getAuth, onAuthStateChanged, signOut as fbSignOut, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 import { getFirestore, collection, getDocs, doc, getDoc, setDoc, deleteDoc, query, where, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-const app = initializeApp({ apiKey:"AIzaSyCbSZRvUsFuepNW8W2D5x-5EwHEE_O2UdE", authDomain:"aixynztestseries-fc5da.firebaseapp.com", projectId:"aixynztestseries-fc5da", storageBucket:"aixynztestseries-fc5da.firebasestorage.app", messagingSenderId:"354795848617", appId:"1:354795848617:web:ab50b9095256b6febbfab8" });
+const firebaseConfig = { apiKey:"AIzaSyCbSZRvUsFuepNW8W2D5x-5EwHEE_O2UdE", authDomain:"aixynztestseries-fc5da.firebaseapp.com", projectId:"aixynztestseries-fc5da", storageBucket:"aixynztestseries-fc5da.firebasestorage.app", messagingSenderId:"354795848617", appId:"1:354795848617:web:ab50b9095256b6febbfab8" };
+const app = initializeApp(firebaseConfig);
 const auth = getAuth(app), db = getFirestore(app);
+
+// For provisioning school admins without logging out the super-admin
+const provisionApp = initializeApp(firebaseConfig, "provision");
+const provisionAuth = getAuth(provisionApp);
 
 onAuthStateChanged(auth, async (u) => {
   document.getElementById('pageLoader').style.opacity = '0';
@@ -156,10 +164,11 @@ window.addSchool = async () => {
   const name = document.getElementById('schoolName').value.trim();
   const city = document.getElementById('schoolCity').value.trim();
   const email = document.getElementById('schoolAdminEmail').value.trim().toLowerCase();
-  const password = document.getElementById('schoolAdminPass').value;
-  let customId = document.getElementById('schoolId').value.trim().toUpperCase();
-
-  if (!name || !email || !password || !city) { showToast('Please fill all fields', 'warning'); return; }
+  
+  if (!name || !email || !city) { showToast('Fill all fields', 'warning'); return; }
+  
+  // Auto-Generate Password
+  const password = Math.random().toString(36).slice(-10) + 'A1!';
 
   const btn = document.querySelector('#addSchoolModal .btn-primary');
   btn.disabled = true; btn.textContent = 'Provisioning...';
@@ -167,26 +176,30 @@ window.addSchool = async () => {
   try {
     const cred = await createUserWithEmailAndPassword(provisionAuth, email, password);
     const uuid = cred.user.uid;
-    const finalId = customId || generateSchoolId(uuid);
+    const schId = generateSchoolId(uuid);
 
-    await setDoc(doc(db, 'schools', finalId), { 
-      id: finalId, name, city, adminEmail: email, createdAt: serverTimestamp(), active: true, studentCount: 0
-    });
-
-    await setDoc(doc(db, 'users', uuid), {
-      uid: uuid, email, displayName: name + ' Admin', role: 'school', schoolId: finalId, schoolName: name, createdAt: serverTimestamp()
-    });
+    await setDoc(doc(db, 'schools', schId), { id: schId, name, city, adminEmail: email, createdAt: serverTimestamp(), active: true });
+    await setDoc(doc(db, 'users', uuid), { uid: uuid, email, displayName: name + ' Admin', role: 'school', schoolId: schId, schoolName: name, createdAt: serverTimestamp() });
 
     await fbSignOut(provisionAuth);
     closeModal('addSchoolModal'); 
-    showToast('School & Admin created!', 'success'); 
+    
+    // Reveal credentials
+    document.getElementById('revealEmail').textContent = email;
+    document.getElementById('revealPass').textContent = password;
+    openModal('credModal');
+
     document.getElementById('addSchoolForm').reset(); 
     await Promise.all([loadSchools(), loadDashboard()]);
-  } catch (e) { 
-    showToast(e.message, 'error'); 
-  } finally {
-    btn.disabled = false; btn.textContent = 'Create & Provision';
-  }
+  } catch (e) { showToast(e.message, 'error'); } finally { btn.disabled = false; btn.textContent = 'Create & Provision'; }
+};
+
+window.copyCreds = () => {
+  const email = document.getElementById('revealEmail').textContent;
+  const pass = document.getElementById('revealPass').textContent;
+  const txt = `School Admin Credentials\nEmail: ${email}\nPassword: ${pass}`;
+  navigator.clipboard.writeText(txt);
+  showToast('Credentials copied to clipboard!', 'success');
 };
 window.deleteSchool = async (id) => { if (!confirm('Delete?')) return; try { await deleteDoc(doc(db, 'schools', id)); showToast('Deleted', 'warning'); await loadSchools(); await loadDashboard(); } catch (e) { showToast(e.message, 'error'); } };
 

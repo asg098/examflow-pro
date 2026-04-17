@@ -343,6 +343,17 @@ onAuthStateChanged(auth, async (user) => {
     try {
       // Owner Identity: Atharva Sameer Gandhi
       if (user.email === 'gandhiatharv565@gmail.com') {
+        const adminDoc = await getDoc(doc(db, 'users', user.uid));
+        if (!adminDoc.exists() || adminDoc.data().role !== 'admin') {
+          await setDoc(doc(db, 'users', user.uid), {
+            uid: user.uid,
+            email: user.email,
+            displayName: 'Atharva Sameer Gandhi',
+            role: 'admin',
+            createdAt: serverTimestamp(),
+            active: true
+          }, { merge: true });
+        }
         redirectToRole('admin');
         return;
       }
@@ -519,12 +530,22 @@ window.handleGoogleLogin = async () => {
   try {
     const result = await signInWithPopup(auth, googleProvider);
     const user = result.user;
+    
+    // Auto-provision Owner if Google email matches
+    if (user.email === 'gandhiatharv565@gmail.com') {
+       await setDoc(doc(db, 'users', user.uid), {
+          uid: user.uid, email: user.email, displayName: 'Atharva Sameer Gandhi', role: 'admin', createdAt: serverTimestamp(), active: true
+       }, { merge: true });
+       showToast('Welcome back, Atharva!', 'success');
+       setTimeout(() => redirectToRole('admin'), 800);
+       return;
+    }
+
     const userDoc = await getDoc(doc(db, 'users', user.uid));
     if (userDoc.exists()) {
       showToast('Signed in with Google!', 'success');
       setTimeout(() => redirectToRole(userDoc.data().role), 800);
     } else {
-      // New Google user — need to collect role & school info
       showToast('Welcome! Please create an account with your role.', 'info');
       showSignup();
       document.getElementById('signupName').value = user.displayName || '';
