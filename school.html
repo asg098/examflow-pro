@@ -5,6 +5,7 @@
   <title>School Dashboard - ExamFlow</title>
   <link rel="stylesheet" href="css/styles.css"/>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="js/shared.js"></script>
 </head>
 <body>
 <div class="page-loader" id="pageLoader"><div class="loader"></div><p style="color:#94a3b8;font-size:0.875rem">Loading School Panel...</p></div>
@@ -240,8 +241,25 @@ async function loadDashStats() {
   document.getElementById('statStudents').textContent = studentSnap.size;
   
   let pendingCount = 0;
-  resultSnap.forEach(d => { if (d.data().status === 'pending') pendingCount++; });
+  let passCount = 0;
+  let failCount = 0;
+  const testScores = {}; // testName -> [scores]
+
+  resultSnap.forEach(d => {
+    const r = d.data();
+    if (r.status === 'pending') {
+       pendingCount++;
+    } else {
+       if (r.passed) passCount++; else failCount++;
+       if (!testScores[r.testName]) testScores[r.testName] = [];
+       testScores[r.testName].push(r.percentage || 0);
+    }
+  });
+
   document.getElementById('statPending').textContent = pendingCount;
+  
+  // Update Dashboard Charts
+  initCharts(testScores, passCount, failCount);
 }
 
 

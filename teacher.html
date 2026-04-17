@@ -7,6 +7,7 @@
   <title>Teacher Dashboard - ExamFlow</title>
   <link rel="stylesheet" href="css/styles.css" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="js/shared.js"></script>
 </head>
 
 <body>
@@ -102,6 +103,21 @@
                 <h3 style="font-size:1rem">Test Performance</h3>
               </div>
               <div class="card-body"><canvas id="chartRecent" height="220"></canvas></div>
+            </div>
+            <div class="card">
+              <div class="card-header">
+                <h3 style="font-size:1rem">Class Insights</h3>
+              </div>
+              <div class="card-body">
+                <div style="margin-bottom:15px">
+                  <div style="font-size:0.8rem;color:#94a3b8;margin-bottom:8px">Top Performers</div>
+                  <div id="topPerformersList" style="display:flex;flex-direction:column;gap:5px"></div>
+                </div>
+                <div>
+                  <div style="font-size:0.8rem;color:#f87171;margin-bottom:8px">Needs Attention</div>
+                  <div id="weakStudentsList" style="display:flex;flex-direction:column;gap:5px"></div>
+                </div>
+              </div>
             </div>
             <div class="card">
               <div class="card-header">
@@ -1157,6 +1173,84 @@
         showToast('Removed', 'warning');
         await loadBank();
       };
+
+      async function loadDashStats() {
+        const [studentSnap, testSnap, resultSnap] = await Promise.all([
+          getDocs(query(collection(db, 'users'), where('schoolId', '==', schoolId), where('role', '==', 'student'))),
+          getDocs(query(collection(db, 'tests'), where('teacherId', '==', uid))),
+          getDocs(query(collection(db, 'results'), where('teacherId', '==', uid)))
+        ]);
+
+        const updateVal = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+        
+        updateVal('sMyStudents', studentSnap.size);
+        updateVal('sMyTests', testSnap.size);
+
+        if (resultSnap.empty) return;
+
+        let totalScore = 0, gradedCount = 0, passed = 0;
+        const studentStats = {};
+
+        resultSnap.forEach(d => {
+          const r = d.data();
+          if (r.status !== 'pending') {
+            totalScore += (r.percentage || 0);
+            gradedCount++;
+            if (r.passed) passed++;
+            
+            if (!studentStats[r.studentId]) studentStats[r.studentId] = { name: r.studentName, scores: [] };
+            studentStats[r.studentId].scores.push(r.percentage || 0);
+          }
+        });
+
+        // Calculate Averages
+        const avg = gradedCount > 0 ? Math.round(totalScore / gradedCount) : 0;
+        const passRate = gradedCount > 0 ? Math.round((passed / gradedCount) * 100) : 0;
+        
+        updateVal('sAvg', avg + '%');
+        updateVal('sPass', passRate + '%');
+        
+        // Find Top/Weak Students
+        const students = Object.values(studentStats).map(s => ({
+          name: s.name,
+          avg: Math.round(s.scores.reduce((a, b) => a + b, 0) / s.scores.length)
+        }));
+
+        const topPerformers = [...students].sort((a,b) => b.avg - a.avg).slice(0, 3);
+        const weakStudents = students.filter(s => s.avg < 40).slice(0, 3);
+
+        const topList = document.getElementById('topPerformersList');
+        const weakList = document.getElementById('weakStudentsList');
+        
+        if (topList) {
+          topList.innerHTML = topPerformers.length ? topPerformers.map(s => `<div style="display:flex;justify-content:space-between;padding:8px 12px;background:rgba(16,185,129,0.05);border-radius:6px;font-size:0.85rem"><span>${s.name}</span><span style="color:#10b981;font-weight:700">${s.avg}%</span></div>`).join('') : '<div style="font-size:0.8rem;color:#64748b">No data</div>';
+        }
+        if (weakList) {
+          weakList.innerHTML = weakStudents.length ? weakStudents.map(s => `<div style="display:flex;justify-content:space-between;padding:8px 12px;background:rgba(239,68,68,0.05);border-radius:6px;font-size:0.85rem"><span>${s.name}</span><span style="color:#ef4444;font-weight:700">${s.avg}%</span></div>`).join('') : '<div style="font-size:0.8rem;color:#64748b">None</div>';
+        }
+        
+        // Charting
+        const testLabels = [], testAverages = [];
+        const testGroups = {};
+        resultSnap.forEach(d => {
+          const r = d.data();
+          if (r.status !== 'pending') {
+            if (!testGroups[r.testName]) testGroups[r.testName] = [];
+            testGroups[r.testName].push(r.percentage || 0);
+          }
+        });
+
+        Object.keys(testGroups).slice(-6).forEach(name => {
+          testLabels.push(name);
+          testAverages.push(Math.round(testGroups[name].reduce((a,b)=>a+b,0) / testGroups[name].length));
+        });
+
+        safeChart('chartRecent', {
+          type: 'line',
+          data: { labels: testLabels, datasets: [{ label: 'Avg Score %', data: testAverages, borderColor: '#6366f1', tension: 0.4 }] },
+          options: { responsive: true, scales: { y: { min: 0, max: 100 } } }
+        });
+      }
 
       async function loadResults() {
         const snap = await getDocs(query(collection(db, 'results'), where('teacherId', '==', uid)));

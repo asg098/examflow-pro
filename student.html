@@ -6,6 +6,7 @@
   <link rel="stylesheet" href="css/styles.css"/>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="js/shared.js"></script>
 </head>
 <body>
 <div class="page-loader" id="pageLoader"><div class="loader"></div><p style="color:#94a3b8;font-size:0.875rem">Loading Student Panel...</p></div>
@@ -490,10 +491,11 @@ async function loadMyResults() {
 
   const subLabels = Object.keys(subjects);
   const subData = subLabels.map(label => Math.round(subjects[label].reduce((a, b) => a + b, 0) / subjects[label].length));
+  
   safeChart('chartStrength', {
-    type: 'polarArea',
-    data: { labels: subLabels, datasets: [{ data: subData, backgroundColor: ['rgba(99,102,241,0.5)', 'rgba(6,182,212,0.5)', 'rgba(239,68,68,0.5)', 'rgba(16,185,129,0.5)', 'rgba(245,158,11,0.5)', 'rgba(168,85,247,0.5)'] }] },
-    options: { responsive: true, scales: { r: { ticks: { display: false }, grid: { color: 'rgba(255,255,255,0.06)' } } }, plugins: { legend: { labels: { color: '#94a3b8' } } } }
+    type: 'radar',
+    data: { labels: subLabels, datasets: [{ label: 'Skill %', data: subData, backgroundColor: 'rgba(99,102,241,0.2)', borderColor: '#6366f1', pointBackgroundColor: '#6366f1' }] },
+    options: { responsive: true, scales: { r: { min: 0, max: 100, ticks: { display: false }, grid: { color: 'rgba(255,255,255,0.08)' } } }, plugins: { legend: { labels: { color: '#94a3b8' } } } }
   });
 
   safeChart('chartHistory', {
