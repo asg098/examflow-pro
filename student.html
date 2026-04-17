@@ -285,6 +285,34 @@ window.startTest = async (testId) => {
   }
   currentTest.questions = questions;
 
+  if (!confirm('PROCTORING WARNING:\n\n1. This test requires Full Screen mode.\n2. Do NOT exit full screen.\n3. Do NOT switch tabs or minimize the browser.\n\nAny violation will immediately lock and auto-submit your test. Do you agree to start?')) {
+    currentTest = null;
+    return;
+  }
+
+  try {
+    if (document.documentElement.requestFullscreen) {
+      await document.documentElement.requestFullscreen();
+    }
+  } catch (e) {
+    console.log('Fullscreen failed:', e);
+  }
+
+  window._proctorVis = () => {
+    if (document.visibilityState === 'hidden' && currentTest) {
+      alert('TEST BLOCKED: Tab switching or window minimization detected. Test will be auto-submitted.');
+      submitExam(true);
+    }
+  };
+  window._proctorFs = () => {
+    if (!document.fullscreenElement && currentTest) {
+      alert('TEST BLOCKED: Exited full screen mode. Test will be auto-submitted.');
+      submitExam(true);
+    }
+  };
+  document.addEventListener('visibilitychange', window._proctorVis);
+  document.addEventListener('fullscreenchange', window._proctorFs);
+
   document.getElementById('answeredCount').textContent = '0';
   document.getElementById('examTitle').textContent = currentTest.name || 'Test';
   document.getElementById('examInfo').textContent = (currentTest.subject || 'General') + ' ? ' + questions.length + ' Questions ? ' + (currentTest.totalMarks || 100) + ' Marks ? Pass: ' + (currentTest.passingMarks || 35);
@@ -385,6 +413,18 @@ window.submitExam = async (isAutoSub = false) => {
       if (timeLeft <= 0) { clearInterval(examTimer); submitExam(true); }
     }, 1000);
     return;
+  }
+
+  if (window._proctorVis) {
+    document.removeEventListener('visibilitychange', window._proctorVis);
+    document.removeEventListener('fullscreenchange', window._proctorFs);
+    window._proctorVis = null;
+    window._proctorFs = null;
+    if (document.fullscreenElement) {
+      try { document.exitFullscreen(); } catch (e) {}
+    }
+    // ensure mouse is not stuck
+    document.body.style.pointerEvents = 'auto';
   }
 
   const resultData = {
